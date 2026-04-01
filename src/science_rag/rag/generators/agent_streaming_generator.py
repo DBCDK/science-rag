@@ -312,6 +312,10 @@ Forklar brugeren at du ikke kan finde svaret på spørgsmålet, og bed dem om at
                     seen_links.add(ref.article_link)
                     filtered_references.append(ref)
 
+            endpoint_profile = input.get("endpoint_profile", "tgi")
             async for ref in self.async_reference_generator(filtered_references):
-                # Keep SSE framing consistent with model chunks.
-                yield f"data: {ref}\n\n"
+                if endpoint_profile == "vllm":
+                    # Keep SSE framing consistent with model chunks.
+                    yield f"data: {ref}\n\n"
+                else:
+                    yield f"data:{ref}\n"
