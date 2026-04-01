@@ -56,6 +56,7 @@ class EmbeddingRetriever(Retriever):
         self.model.to(self.device)
         self.model.eval()
         # cross-model for rerank
+        print(cross_model_path)
         self.cross_model = AutoModelForSequenceClassification.from_pretrained(cross_model_path, device_map=self.device)
         self.cross_tokenizer = AutoTokenizer.from_pretrained(cross_model_path, device_map=self.device)
         self.cross_model.to(self.device)

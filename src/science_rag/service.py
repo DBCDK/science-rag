@@ -13,6 +13,8 @@ Endpoint for streaming RAG
 import logging
 import asyncio
 import json
+import time
+import uuid
 import tornado.web as tw
 from dbc_pyutils import create_instance_id
 from dbc_pyutils import Statistics
@@ -24,6 +26,8 @@ from dbc_pyutils import MetricsHandler
 from dbc_pyutils import BaseHandler
 from science_rag.rag.langgraph_graphs import AgenticGraph
 from science_rag.rag.agent_streaming_rag import AgenticRAG
+from science_rag.config import DEFAULT_MODEL
+from science_rag.tools.llm_formatting import async_gen_wrapper
 
 INSTANCE_ID = create_instance_id(num_digits=8)
 STATS = {"query": Statistics(name="query")}
@@ -61,10 +65,74 @@ class StreamingHandler(BaseHandler):
 
         self.flush()
 
-        result = await self.agentic_graph.graph.ainvoke({"input": messages})
+        result = await self.agentic_graph.graph.ainvoke(
+            {"input": messages, "endpoint_profile": "tgi"}
+        )
         async for chunk in result["output"]:
             self.write(chunk)
             await self.flush()
+
+
+class GlyphGateHandler(BaseHandler):
+    """
+    GlyphGateHandler
+    """
+
+    def initialize(self, model, graph_type: str, info, stat_collector):
+        """
+        Initializes handler
+        """
+        self.info = info
+        self.stat_collector = stat_collector
+        self.static_header_content = {
+            "build": self.info["build_number"],
+            "git": self.info["git"],
+            "version": self.info["version"],
+        }
+        self.model = model
+        self.agentic_graph = AgenticGraph(type=graph_type, model=model)
+
+    async def post(self):
+        body = json.loads(self.request.body.decode("utf8"))
+        self.version = body.get("version", "v1")
+        messages = body.get("messages", [])
+        stream = body.get("stream", False)
+        model_name = body.get("model", DEFAULT_MODEL)
+
+        result = await self.agentic_graph.graph.ainvoke(
+            {"input": messages, "endpoint_profile": "vllm"}
+        )
+
+        if stream:
+            async for chunk in result["output"]:
+                self.write(chunk)
+                await self.flush()
+            self.write("data: [DONE]\n\n")
+            await self.flush()
+            return
+
+        self.set_header("Content-Type", "application/json; charset=utf-8")
+        output = "".join(
+            [token async for token in async_gen_wrapper(result["output"], DEFAULT_MODEL)]
+        )
+        self.write(
+            json.dumps(
+                {
+                    "id": f"chatcmpl-{uuid.uuid4().hex}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": model_name,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": output},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                }
+            )
+        )
+        await self.flush()
 
 
 class MetricsApp(PrometheusMixIn, tw.Application):
@@ -77,6 +145,16 @@ def make_app(model, graph_type):
         (
             r"/",
             StreamingHandler,
+            dict(
+                model=model,
+                graph_type=graph_type,
+                info=info,
+                stat_collector=STATS["query"],
+            ),
+        ),
+        (
+            r"/v1/chat/completions",
+            GlyphGateHandler,
             dict(
                 model=model,
                 graph_type=graph_type,
