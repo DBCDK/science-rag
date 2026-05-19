@@ -28,9 +28,9 @@ from science_rag.tools.llm_formatting import clean_sources_from_messages
 
 # from langchain.text_splitter import RecursiveCharacterTextSplitter
 from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification
+import aiohttp
 import numpy as np
 import torch
-import torch.nn.functional as F
 import json
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 EMBEDDINGS_PATH = "/data/rani/mitcfu-data/10plus-abstract-77295-jeds-e5-multilingual-instruct-faiss-index"
 MODEL_PATH = "/data/mitCFU-models/multilingual-e5-large"
 CROSS_MODEL_PATH = "/data/mitCFU-models/ms-marco-MiniLM-L-6-v2"
+EMBEDDING_SERVER_URL = "http://ai-p301:5009/v1/embeddings"
 
 
 class EmbeddingRetriever(Retriever):
@@ -46,15 +47,14 @@ class EmbeddingRetriever(Retriever):
         model_path=MODEL_PATH,
         embeddings_path=EMBEDDINGS_PATH,
         cross_model_path=CROSS_MODEL_PATH,
+        embedding_server_url=EMBEDDING_SERVER_URL,
         jed_document_path=None,
     ):
         # We should not use GPU for such small models, since they will take up the whole k8s GPU regardless of their size
         self.device = "cpu"
         # embedding model for faiss index
-        self.model = AutoModel.from_pretrained(model_path, device_map=self.device)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path, device_map=self.device)
-        self.model.to(self.device)
-        self.model.eval()
+        self.embedding_server_url = embedding_server_url
+        self.session = aiohttp.ClientSession()
         # cross-model for rerank
         self.cross_model = AutoModelForSequenceClassification.from_pretrained(cross_model_path, device_map=self.device)
         self.cross_tokenizer = AutoTokenizer.from_pretrained(cross_model_path, device_map=self.device)
@@ -70,6 +70,7 @@ class EmbeddingRetriever(Retriever):
             self.all_materialtypes = set()
         self.validator = None
         self.task = "Given a web search query, retrieve relevant passages that answer the query"
+
 
     def initiate_articles(self):
         with open(self.jed_document_path) as f:
@@ -140,16 +141,23 @@ class EmbeddingRetriever(Retriever):
             logger.debug(f"Retrieving resources for {query}")
         return await self.get_docs(query, n)
 
-    # https://huggingface.co/intfloat/multilingual-e5-large
+
     async def get_docs(self, query: str, limit: int = 3):
-        model_device = next(self.model.parameters()).device
-        batch_dict = self.tokenizer(query, max_length=512, padding=True, truncation=True, return_tensors="pt")
-        batch_dict = {k: v.to(model_device) for k, v in batch_dict.items()}
-        with torch.no_grad():
-            outputs = self.model(**batch_dict)
-        embeddings = average_pool(outputs.last_hidden_state, batch_dict["attention_mask"])
-        embedded_query = F.normalize(embeddings, p=2, dim=1).detach().cpu().numpy().astype(np.float32)
+        if not self.session:
+            raise RuntimeError("EmbeddingRetriever must be used as an async context manager")
+        payload = {
+            "model": "intfloat/multilingual-e5-large-instruct",
+            "input": query
+        }
+        print(payload)
+        async with self.session.post(self.embedding_server_url, json=payload) as response:
+            response.raise_for_status()
+            result = await response.json()
+
+        embedding = result["data"][0]["embedding"]
+        embedded_query = np.array(embedding, dtype=np.float32).reshape(1, -1)
         return await self.search(embedded_query, limit)
+
 
     async def search(self, embedded_query, limit, filters=None):
         hits = await self.searcher.search(embedded_query, limit * 100)

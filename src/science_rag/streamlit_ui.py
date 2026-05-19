@@ -18,9 +18,10 @@ from science_rag.tools.llm_formatting import gen_wrapper, select_model_function,
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 relative_img_path = os.path.join(current_dir, "faktalink_icon.png")
+STREAMING_PORT = os.environ.get("STREAMING_PORT", "5009")
 STREAMING_ENDPOINTS = {
-    "tgi": "http://ai-p301:5009",
-    "vllm": "http://ai-p301:5009/v1/chat/completions",
+    "tgi": f"http://ai-p301:{STREAMING_PORT}",
+    "vllm": f"http://ai-p301:{STREAMING_PORT}/v1/chat/completions",
 }
 STREAMING_BACKEND = os.environ.get("SCIENCE_RAG_UI_STREAM_BACKEND", "tgi").lower()
 if STREAMING_BACKEND not in STREAMING_ENDPOINTS:
