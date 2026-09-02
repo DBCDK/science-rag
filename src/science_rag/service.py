@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-:mod:`mitcfu_rag.streaming_endpoint` -- endpoint for streaming RAG
+:mod:`science_rag.streaming_endpoint` -- endpoint for streaming RAG
 
 ==================
 Streaming Endpoint
@@ -10,9 +10,10 @@ Streaming Endpoint
 Endpoint for streaming RAG
 """
 
-import logging
 import asyncio
 import json
+import logging
+import signal
 import time
 import uuid
 import tornado.web as tw
@@ -24,10 +25,10 @@ from dbc_pyutils import StatusHandler
 from dbc_pyutils import PrometheusMixIn
 from dbc_pyutils import MetricsHandler
 from dbc_pyutils import BaseHandler
+from openai import APIError
 from science_rag.rag.langgraph_graphs import AgenticGraph
 from science_rag.rag.agent_streaming_rag import AgenticRAG
 from science_rag.config import DEFAULT_MODEL
-from science_rag.tools.llm_formatting import async_gen_wrapper
 
 
 INSTANCE_ID = create_instance_id(num_digits=8)
@@ -77,22 +78,54 @@ class GlyphGateHandler(BaseHandler):
 
         result = await self.agentic_graph.graph.ainvoke({"input": messages})
 
+        chat_id = f"chatcmpl-{uuid.uuid4().hex}"
+        created = int(time.time())
+
+        def frame(delta=None, finish_reason=None):
+            return {
+                "id": chat_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model_name,
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {"content": delta} if delta is not None else {},
+                        "finish_reason": finish_reason,
+                    }
+                ],
+            }
+
         if stream:
-            async for chunk in result["output"]:
-                self.write(chunk)
-                await self.flush()
+            self.set_header("Content-Type", "text/event-stream; charset=utf-8")
+            try:
+                async for delta in result["output"]:
+                    self.write(f"data: {json.dumps(frame(delta=delta))}\n\n")
+                    await self.flush()
+                self.write(f"data: {json.dumps(frame(finish_reason='stop'))}\n\n")
+            except APIError as e:
+                logger.warning(f"Upstream LLM error mid-stream: {e}")
+                error_frame = {"error": {"message": str(e), "type": e.__class__.__name__}}
+                self.write(f"data: {json.dumps(error_frame)}\n\n")
             self.write("data: [DONE]\n\n")
             await self.flush()
             return
 
         self.set_header("Content-Type", "application/json; charset=utf-8")
-        output = "".join([token async for token in async_gen_wrapper(result["output"], DEFAULT_MODEL)])
+        try:
+            output = "".join([token async for token in result["output"]])
+        except APIError as e:
+            logger.warning(f"Upstream LLM error: {e}")
+            self.set_status(502)
+            self.write(json.dumps({"error": {"message": str(e), "type": e.__class__.__name__}}))
+            await self.flush()
+            return
         self.write(
             json.dumps(
                 {
-                    "id": f"chatcmpl-{uuid.uuid4().hex}",
+                    "id": chat_id,
                     "object": "chat.completion",
-                    "created": int(time.time()),
+                    "created": created,
                     "model": model_name,
                     "choices": [
                         {
@@ -146,12 +179,19 @@ async def main(args):
         faiss_index=args.faiss_path,
         jed_document_path=args.article_index_path,
         validator_model=args.validator_model_path,
-        use_ceph=args.use_ceph,
     )
     logger.info(f"Starting endpoint at port {args.port}")
     app = make_app(model, args.graph_type)
     app.listen(args.port)
-    await asyncio.Event().wait()
+
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, stop_event.set)
+
+    await stop_event.wait()
+    logger.info("Shutting down, closing LLM clients")
+    await model.generator.aclose()
 
 
 def cli():
@@ -188,12 +228,6 @@ def cli():
         dest="graph_type",
         help="type of langgraph graph to use. default is service. possible values are service, evaluate_router",
         default="service",
-    )
-    parser.add_argument(
-        "--use-ceph",
-        dest="use_ceph",
-        action="store_true",
-        help="Set this flag if running on Ceph or in dockerfile",
     )
     parser.add_argument("-a", "--ab-id", dest="ab_id", help="ab id of service. default is 1", default=1)
     parser.add_argument(
