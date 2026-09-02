@@ -42,6 +42,12 @@ def _vllm_base_url(url: str) -> str:
     return url.removesuffix("/chat/completions")
 
 
+def _max_tokens() -> int | None:
+    """Read MITCFU_MAX_TOKENS. Unset or empty means no limit (None)."""
+    value = os.environ.get("SCIENCE_RAG_MAX_TOKENS")
+    return int(value) if value else None
+
+
 class AgentStreamingGenerator(Generator):
     def __init__(self):
         self.streaming_delays = [0.01, 0.02, 0.03]
@@ -56,6 +62,7 @@ class AgentStreamingGenerator(Generator):
                 api_key="unused",
             ),
         }
+        self.max_tokens = _max_tokens()
         # If SCIENCE_RAG_VLLM_MODEL is unset, fall back to the model key rather than
         # sending a blank "model" field to vLLM.
         self.request_model_names = {
@@ -159,13 +166,15 @@ Forklar brugeren at du ikke kan finde svaret på spørgsmålet, og bed dem om at
         # APITimeoutError) are intentionally not caught here - they propagate up through
         # AgenticRAG.stream_response / AgenticGraph into service.py, which turns them into
         # an SSE error frame instead of silently truncating the stream.
-        stream = await client.chat.completions.create(
-            model=self.request_model_names.get(model_key, model_key),
-            messages=messages,
-            stream=True,
-            max_tokens=1000,
-            temperature=0.1,
-        )
+        create_kwargs = {
+            "model": self.request_model_names.get(model_key, model_key),
+            "messages": messages,
+            "stream": True,
+            "temperature": 0.1,
+        }
+        if self.max_tokens is not None:
+            create_kwargs["max_tokens"] = self.max_tokens
+        stream = await client.chat.completions.create(**create_kwargs)
         async for chunk in stream:
             if not chunk.choices:
                 continue
