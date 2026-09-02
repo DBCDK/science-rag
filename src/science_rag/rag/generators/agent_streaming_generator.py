@@ -28,7 +28,7 @@ from openai import AsyncOpenAI
 
 from science_rag.config import GEMMA_4_26B
 from science_rag.rag.rag import Generator, Reference
-from science_rag.tools.llm_formatting import clean_sources_from_messages
+from science_rag.tools.message_history import clean_sources_from_messages
 
 roles_to_ignore = ["resetter", "summarizer"]
 
@@ -122,9 +122,8 @@ Forklar brugeren at du ikke kan finde svaret på spørgsmålet, og bed dem om at
         if agent_type in {"RAG", "FOLLOW_UP"}:
             # Only generate something if there are references.
             if parsed_references:
-                system_content = (
-                    f"{self.system_message}\n{prompt_template}\nDokumenter:"
-                    + ". ".join([f"{ref.article_headline}: {ref.text[:500]}" for ref in parsed_references])
+                system_content = f"{self.system_message}\n{prompt_template}\nDokumenter:" + ". ".join(
+                    [f"{ref.article_headline}: {ref.text[:500]}" for ref in parsed_references]
                 )
                 return [{"role": "system", "content": system_content}, *msgs]
             # No references: use the missing-reference prompt. Preserves today's exact

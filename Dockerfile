@@ -26,5 +26,5 @@ RUN wget -nv --no-check-certificate ${MODEL_PATH} -O ms-marco-MiniLM-L-6-v2.tgz 
 # Ensure uv env is on path
 ENV PATH="/home/python/.venv/bin:$PATH"
 # /data/science-rag-1-0 is a symlink to the model (multilingual-e5-large-instruct) on the k8s volume mount
-CMD ["streaming-service-science-rag", "/data/science-rag-1-0", "science_rag_delivery_two", "--article_index_path", "science_rag_delivery_two_document_chunks.json", "--validator-model-path", "ms-marco-MiniLM-L-6-v2", "--port", "5000", "--use-ceph"]
+CMD ["streaming-service-science-rag", "/data/science-rag-1-0", "science_rag_delivery_two", "--article_index_path", "science_rag_delivery_two_document_chunks.json", "--validator-model-path", "ms-marco-MiniLM-L-6-v2", "--port", "5000"]
 EXPOSE 5000
