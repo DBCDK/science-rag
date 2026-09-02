@@ -25,7 +25,7 @@ dependencies = [
     "sentence_transformers",
     "rich",
     "rank_bm25",
-    "transformers==4.57.1",
+    "transformers",
     "torch",
     "dbc_pyutils",
     "tornado",
