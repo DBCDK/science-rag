@@ -4,7 +4,7 @@
 # the model that should be used in evaluation, chatUI
 # MODELS TO USE
 
-GEMMA_4_26B = "gemma-4-26b-it"
+GEMMA_4_26B = "gemma-4-26b-a4b-it"
 
 MODEL_MAP = {
     GEMMA_4_26B: "google/gemma-4-26B-A4B-it",
