@@ -36,7 +36,6 @@ class AgentState(TypedDict):
     output: str
     agent: str
     prompt_template: str
-    endpoint_profile: str
 
 
 class AgenticGraph:
@@ -88,10 +87,17 @@ class AgenticGraph:
         route_result = "".join(raw_response)
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"Router result:\n{route_result}\n")
+        valid_agents = {"RAG", "SIMPLE", "FOLLOW_UP", "FALLBACK"}
         try:
             json_response = json.loads(route_result)
             agent = json_response.get("agent", None)
-        except:
+            if isinstance(agent, str):
+                # the router prompt lists agent names as e.g. "[FALLBACK]";
+                # the model sometimes echoes that bracketed form back, so strip it.
+                agent = agent.strip().strip("[]").upper()
+            if agent not in valid_agents:
+                agent = None
+        except Exception:
             logger.info("Unable to parse response as json")
             agent = None
         if agent:

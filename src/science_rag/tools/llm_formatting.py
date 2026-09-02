@@ -10,9 +10,10 @@ Functions for formatting input for llm's and reading the streamed output from ll
 """
 
 import json
+
 from transformers import AutoTokenizer
 
-from science_rag.config import MODEL_MAP, GEMMA_3_12B, MIXTRAL_8X7B
+from science_rag.config import GEMMA_4_26B, MODEL_MAP
 
 
 def load_tokenizers(model_names: list[str], use_ceph: bool = False):
@@ -21,14 +22,14 @@ def load_tokenizers(model_names: list[str], use_ceph: bool = False):
     If running this in k8s, load the tokenizers from the ceph mount,
     otherwise load it from huggingface or from cache.
     Make sure you are logged into your huggingface account and have access to the models.
-    :param tgi_endpoints:
+    :param model_names:
     :return tokenizers:
     """
     tokenizers = {}
     for model_name in model_names:
         if use_ceph:
             tokenizers[model_name] = AutoTokenizer.from_pretrained(f"/data/{model_name}")
-            # tokenizers[model_name] = AutoTokenizer.from_pretrained("/data/huggingface/gemma-3-12b-it")
+            # tokenizers[model_name] = AutoTokenizer.from_pretrained("/data/huggingface/gemma-4-26b-a4b-it")
         else:
             tokenizers[model_name] = AutoTokenizer.from_pretrained(MODEL_MAP[model_name])
     return tokenizers
@@ -51,30 +52,21 @@ async def async_gen_wrapper(stream, model_name):
 
 
 def select_model_function(model_name):
-    if GEMMA_3_12B in model_name.lower():
+    if GEMMA_4_26B in model_name.lower():
         return __gemma_gen_wrapper
-    elif MIXTRAL_8X7B in model_name.lower():
-        return __mixtral_gen_wrapper
-    else:
-        raise ValueError(f"Unsupported model name: {model_name}")
+    raise ValueError(f"Unsupported model name: {model_name}")
 
 
-def tgi_input_format(model_name, request_body):
-    if GEMMA_3_12B in model_name.lower():
-        return __gemma_tgi_input_format(request_body)
-    elif MIXTRAL_8X7B in model_name.lower():
-        return __mixtral_tgi_input_format(request_body)
-    else:
-        raise ValueError(f"Unsupported model name: {model_name}")
+def build_request_body(model_name, request_body):
+    if GEMMA_4_26B in model_name.lower():
+        return __gemma_request_body(request_body)
+    raise ValueError(f"Unsupported model name: {model_name}")
 
 
-def tgi_output_format(model_name, content):
-    if GEMMA_3_12B in model_name.lower():
-        return __gemma_tgi_output_format(content)
-    elif MIXTRAL_8X7B in model_name.lower():
-        return __mixtral_tgi_output_format(content)
-    else:
-        raise ValueError(f"Unsupported model name: {model_name}")
+def build_output_chunk(model_name, content):
+    if GEMMA_4_26B in model_name.lower():
+        return __gemma_output_chunk(content)
+    raise ValueError(f"Unsupported model name: {model_name}")
 
 
 def clean_sources_from_messages(messages: list[dict]):
@@ -88,15 +80,11 @@ def clean_sources_from_messages(messages: list[dict]):
     return cleaned_messages
 
 
-def __gemma_tgi_output_format(content):
+def __gemma_output_chunk(content):
     return {"choices": [{"delta": {"content": content}}]}
 
 
-def __mixtral_tgi_output_format(content):
-    return {"token": {"text": content}}
-
-
-def __gemma_tgi_input_format(request_body):
+def __gemma_request_body(request_body):
     return {
         "messages": request_body["messages"],
         "model": request_body["model"],
@@ -105,23 +93,11 @@ def __gemma_tgi_input_format(request_body):
     }
 
 
-def __mixtral_tgi_input_format(request_body):
-    return {
-        "inputs": request_body["messages"][0]["content"],
-        "parameters": request_body["parameters"],
-    }
-
-
 def __gemma_gen_wrapper(obj):
     token = obj.get("choices", [{}])[0].get("delta", {}).get("content", "")
-    if not token == "<eos>":
+    # Gemma 4 IT ends generation with "<turn|>", not Gemma 3's "<eos>".
+    if not token == "<turn|>":
         return token
-    return ""
-
-
-def __mixtral_gen_wrapper(obj):
-    if not obj.get("token", {}).get("text", {}) == "</s>":
-        return obj.get("token", {}).get("text", {})
     return ""
 
 
