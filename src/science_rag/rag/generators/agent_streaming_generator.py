@@ -66,7 +66,7 @@ class AgentStreamingGenerator(Generator):
         # If SCIENCE_RAG_VLLM_MODEL is unset, fall back to the model key rather than
         # sending a blank "model" field to vLLM.
         self.request_model_names = {
-            GEMMA_4_26B: os.environ.get("SCIENCE_RAG_VLLM_MODEL") or GEMMA_4_26B,
+            GEMMA_4_26B: os.environ.get("SCIENCE_RAG_VLLM_MODEL", ""),
         }
         self.system_message = (
             "Du er Science-RAG. Du hjælper med søgninger et katalog af PDF'er. Du svarer altid på dansk."
