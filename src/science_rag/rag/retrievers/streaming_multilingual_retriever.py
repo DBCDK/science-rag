@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
 """
-:mod:`mitcfu_rag.retrievers.embedding_retriever - embedding_retriever
+:mod:`science_rag.rag.retrievers.streaming_multilingual_retriever` - embedding_retriever
 
 ============
 EmbeddingRetriever
@@ -12,7 +12,7 @@ EmbeddingRetriever retrieves relevant references based on the messages from the 
 There is no underlying database and EmbeddingRetriever returns an dummy document.
 
 example of usage:
-    from mitcfu_rag.embedding_retriever import EmbeddingRetriever
+    from science_rag.rag.retrievers.streaming_multilingual_retriever import EmbeddingRetriever
     e_retriever = EmbeddingRetriever()
     messages = messages = ["Hej", "Er der noget om biblioteker?"]
     refs = e_retriever.retrieve(messages)

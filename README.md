@@ -37,82 +37,83 @@ streamlit run src/science_rag/streamlit_ui.py --server.port 8111
 
 If you have further questions about the process, ask rani or nily for their notebook example for the PDFs from CFU.
 
-## NOTE: The rest of the documentation is from MitCFU-RAG.
-Many of commands should be analogous, but see the guide above for greater clarity.
-
-## How to start the service from the command line
-The easiest way to test is to start two services: the streaming service and the streamlitui service
-Before starting them, make sure you have done the following:
-
-Checkout the project on `ai-p301`. This is currently the only place where the files/models are
-Run `pip install -e .` from the root of the project on
-Run `conda install -c conda-forge faiss` to install faiss
-
-### Starting the streaming service
-Start the service with the following parameters
-`streaming-service-mitcfu /data/mitCFU-models/multilingual-e5-large /data/mitCFU/faiss-indexes/mitcfu_faiss_index_with_pedagogical_note/ -p 5011 --article_index_path /data/mitCFU/faiss-indexes/mitcfu_faiss_index_file_with_pedagogical_note`
-
-### Starting the streamlitui service
-Start the service with the following parameters.
-`streamlit run src/science_rag/streamlit_ui.py --server.port 8111`
-NOTE: If you did not run your streaming service on port 5011, you will have to manually change the endpoint by editing
-the variable `STREAMING_ENDPOINT` in `streamlit_ui.py`
-
-## How to start the service with DOCKER
+## How to start the service with Docker
 Build the docker image from the Dockerfile:
 
-`docker build -t $USER/<my-service-name>:test -f Dockerfile .`
+`docker build -t $USER/science-rag:test -f Dockerfile .`
 
-Run the docker image:
+The build downloads the validator model and FAISS index/document-chunks bundle from Artifactory
+via `MODEL_PATH`/`FAISS_PATH`/`INDEX_PATH` build args (see `Dockerfile`); these resolve from
+`ARTIFACTORY_URL`/`AI_PRODUCTION`/`AI_DOCKER_LAYERS`, which CI (the `buildImage()` step in
+`Jenkinsfile`) sets automatically. Building locally requires those set in your environment too.
 
-`docker run -v /data/mitCFU-models/multilingual-e5-large:/data/mitcfu-rag-1-0 -p 5011:5000 -it $USER/mitcfu-rag`
+The embedding model itself is **not** baked into the image — `/data/science-rag-1-0` inside the
+container is expected to be a symlink/mount to the `multilingual-e5-large-instruct` model
+(on k8s this comes from a volume mount). Run the image with that path mounted:
 
-`-e LOG_FORMAT=text` gives you log output in text instead of json
+`docker run -v /path/to/multilingual-e5-large-instruct:/data/science-rag-1-0 -p 5011:5000 -it $USER/science-rag`
 
-`--rm` ensures the docker container is closed down properly after use
+`-e LOG_FORMAT=text` gives you log output in text instead of json.
 
-If you for example have started the service on the server ai-p301 you can reach the service via this url
+`--rm` ensures the docker container is closed down properly after use.
+
+If you have started the service on the server `ai-p301` you can reach it via this url:
 `http://ai-p301:<PORT_NUMBER>`
 
-or locally via this url: 
-
+or locally via this url:
 `localhost:<PORT_NUMBER>`
 
-## Create faiss embeddings
-### How to run <my_command>
-Run `pip install -e .` from the root of the project.
-Run `conda install -c conda-forge faiss`
+## Create faiss embeddings (alternate indexing path)
+`create-faiss-index` is a simpler, direct embed-and-index CLI (`rag/retrievers/indexes/multilinguale5.py`),
+separate from the `docling_indexer.py` pipeline described above — it does not do PDF/CSV parsing,
+it expects documents already extracted into a folder. Run `pip install -e .` and
+`conda install -c conda-forge faiss` first, same as above, then:
 
-First run `touch mitcfu-index-file-path`
-Then run `create-faiss-index --path_to_db mitcfu-faiss-db --path_to_folder /data/mitcfu-rag/jed-docs --path_to_index_file mitcfu-index-file-path --batch_size 10 --create_new_index_extract`
+`create-faiss-index --path-to-db path/to/faiss-db --path-to-folder path/to/documents --path-to-index-file path/to/index-file --batch-size 10 --create-new-index-extract`
 
-This will start the indexing of the documents in the folder "--path_to_folder" and save the FAISS index and labels in the path specified after "--path_to_db".
-"""
+This indexes the documents in `--path-to-folder` and saves the FAISS index and labels under
+`--path-to-db`.
 
 ## How to run tests for this project
-### Unit tests 
+### Unit tests
+Run `pytest` from the repo root (`tests/`, configured via `pyproject.toml`'s
+`[tool.pytest.ini_options]`).
 
 ### Validation tests
+None exist today. The `evaluate`/`evaluate-retrieval`/`compare-retrievers` tools that used to
+serve this role were removed as dead code (they imported nonexistent packages and never ran) —
+this is open work, not a regression.
 
 ### Performance tests
+None exist today — same status as validation tests above.
 
 ### Sanity checks before Merge Request
-
+- `pytest`
+- `ruff check`
+- `pip-audit`
+- CI (`Jenkinsfile`) already runs the test step automatically on every push.
 
 ## Artifacts built in this project
-
+A Docker image built from `Dockerfile`, deployed as `science-rag-1-0` (see `Jenkinsfile`'s
+`SCIENCE_RAG_1_0_VERSION` gitops variable, set for both `ai-staging` and `ai-prod`).
 
 ## Related Jenkins jobs on is.dbc.dk
-
+The pipeline defined in this repo's `Jenkinsfile`: runs tests, builds the Docker image, and on
+`main` rolls out `deployment/science-rag-1-0` to `ai-staging` then `ai-prod`.
 
 ## Related artifacts from Artifactory
+- Validator model: `mitcfu-rag/ms-marco-MiniLM-L-6-v2.tgz` (shared with MitCFU-RAG)
+- FAISS index: `science-rag/science_rag_delivery_two_index.tgz`
+- Document chunks: `science-rag/science_rag_delivery_two_document_chunks.json`
 
+(paths relative to the Artifactory roots configured via `ARTIFACTORY_URL`/`AI_PRODUCTION`/
+`AI_DOCKER_LAYERS` — see `Dockerfile`)
 
 ## Related repositories
-MitCFU-RAG (mitcfu-rag).
-
+MitCFU-RAG (mitcfu-rag) — this repo shares its RAG pipeline structure and validator model.
 
 ## Production version of the service
- 
- 
+_TODO_: link the live production URL here.
+
 ## Documentation on confluence
+_TODO_: link the Confluence page(s) for this project here.
