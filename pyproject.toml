@@ -30,7 +30,7 @@ dependencies = [
     "dbc_pyutils",
     "tornado",
     "pydantic",
-    "aiohttp",
+    "openai",
     "asyncio",
     "requests",
     "keybert",

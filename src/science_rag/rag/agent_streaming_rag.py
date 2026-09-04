@@ -44,7 +44,6 @@ class AgenticRAG(RAG):
         faiss_index,
         jed_document_path,
         validator_model=None,
-        use_ceph=False,
     ):
         """
         Components used in the RAG model.
@@ -57,7 +56,7 @@ class AgenticRAG(RAG):
             cross_model_path=validator_model,
         )
         self.reranker = None
-        self.generator = AgentStreamingGenerator(use_ceph=use_ceph)
+        self.generator = AgentStreamingGenerator()
         if validator_model:
             self.validator = None
         self.summarizer = None

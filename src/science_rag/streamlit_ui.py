@@ -4,11 +4,10 @@ torch.classes.__path__ = []  # type: ignore
 
 import os
 import random
-import json
 import streamlit as st
-import requests
+from openai import OpenAI
 
-from science_rag.tools.llm_formatting import select_model_function, GEMMA_4_26B
+from science_rag.config import DEFAULT_MODEL
 
 # from fakta_chat.config import RAG
 
@@ -26,6 +25,13 @@ if STREAMING_BACKEND not in STREAMING_ENDPOINTS:
 STREAMING_ENDPOINT = STREAMING_ENDPOINTS[STREAMING_BACKEND]
 
 
+def _base_url(url: str) -> str:
+    """openai.OpenAI wants the `.../v1` base and appends `chat/completions` itself."""
+    return url.removesuffix("/chat/completions")
+
+
+client = OpenAI(base_url=_base_url(STREAMING_ENDPOINT), api_key="unused")
+
 version = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 if not st.session_state:
@@ -40,23 +46,6 @@ def clear_chat_history():
 
 def chat():
     st.session_state.messages = chat_history
-
-
-def stream_tokens(response, model_name):
-    model_function = select_model_function(model_name)
-    for line in response.iter_lines(decode_unicode=True):
-        if not line:
-            continue
-        payload = line.strip()
-        if payload.startswith("data:"):
-            payload = payload[len("data:") :].strip()
-        if not payload or payload == "[DONE]":
-            continue
-        try:
-            obj = json.loads(payload)
-            yield model_function(obj)
-        except json.JSONDecodeError:
-            continue
 
 
 st.sidebar.button("New Chat", on_click=clear_chat_history)
@@ -98,17 +87,15 @@ if prompt := st.chat_input("Indsæt dit spørgmål her ..."):
             "Hmm, lad mig finde noget...",
         ]
         with st.spinner(random.choice(fillers)):
-            references = []
-            payload = {"messages": st.session_state.messages}
-            if STREAMING_BACKEND == "vllm":
-                payload["stream"] = True
-
-            response_stream = requests.post(
-                STREAMING_ENDPOINT,
-                json=payload,
+            stream = client.chat.completions.create(
+                model=DEFAULT_MODEL,
+                messages=st.session_state.messages,
                 stream=True,
             )
-            response_stream.raise_for_status()
-            response = st.write_stream(stream_tokens(response_stream, GEMMA_4_26B))
+            response = st.write_stream(
+                chunk.choices[0].delta.content
+                for chunk in stream
+                if chunk.choices and chunk.choices[0].delta.content
+            )
 
             st.session_state.messages.append({"role": "assistant", "content": response})
