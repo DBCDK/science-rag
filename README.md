@@ -1,12 +1,17 @@
 # Science-RAG
 
 RAG-solution for PDFs from CFU. The repository uses the same RAG-structure as MitCFU-RAG, but instead of getting data from
-MitCFU Marc entries, PDFs (and optionally CSVs) are loaded using LangChain Documentloaders through the script
-tools/GenericParser.py. This script can handle common filetypes (such as .pdf, .txt, .json) and has the option to try to read
-other filetypes. Then, a list of LangChain Document objects are created. From this, we can use the metadata and page_content
-to create FAISS indexes for similarity search. For now, we simply extract page_content and create a JED-like structure to enable
-the rest of the MitCFU-pipeline to do the hard work. If you want to do this with your own documents, see the description below
-in "So you want to index your own documents ..."
+MitCFU Marc entries, documents are indexed via `docling`'s `DocumentConverter` (see
+`rag/retrievers/indexes/docling_indexer.py`), optionally enriched with Astra CSV metadata. From the resulting chunks we can
+use the metadata and page_content to create FAISS indexes for similarity search. For now, we simply extract page_content and
+create a JED-like structure to enable the rest of the MitCFU-pipeline to do the hard work.
+
+`tools/generic_parser.py` additionally provides a `GenericParser` utility that loads common filetypes (such as .pdf, .txt,
+.json, with a fallback for other types) via LangChain Documentloaders into a list of LangChain `Document` objects. It's a
+building block for custom loading and is not currently wired into the docling-based indexing pipeline described below.
+
+If you want to index your own documents using the current pipeline, see the description below in "So you want to index your
+own documents ..."
 
 ## So you want to index your own documents ...
 On ai-p301:

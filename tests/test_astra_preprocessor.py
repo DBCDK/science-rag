@@ -132,7 +132,7 @@ def get_failed_page_content_rows(
     return df.loc[failed_indices].copy()
 
 
-def test_single_example(raw_text: str) -> None:
+def check_single_example(raw_text: str) -> None:
     """
     Quick manual test for a single raw text value.
     """
@@ -152,7 +152,7 @@ def test_single_example(raw_text: str) -> None:
     assert not checks["contains_html_pattern"]
 
 
-def test_dataframe_page_content(
+def check_dataframe_page_content(
     df: pd.DataFrame,
     raw_col: str = "page_content_raw",
     clean_col: str = "page_content",
