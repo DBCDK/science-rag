@@ -23,8 +23,9 @@ dependencies = [
     "rich",
     "transformers",
     "torch",
-    "dbc_pyutils",
-    "tornado",
+    "fastapi",
+    "uvicorn",
+    "httpx",
     "openai",
     "requests",
     "accelerate",
@@ -38,10 +39,11 @@ dev = [
     "ruff",
     "pip-audit",
 ]
+dbc = ["dbc_pyutils"]
 
 [project.scripts]
 create-faiss-index = "science_rag.rag.retrievers.indexes.multilinguale5:main"
-streaming-service-science-rag = "science_rag.service:cli"
+streaming-service-science-rag = "science_rag.service.start:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

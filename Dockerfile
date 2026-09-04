@@ -21,7 +21,7 @@ RUN wget -nv --no-check-certificate ${MODEL_PATH} -O ms-marco-MiniLM-L-6-v2.tgz 
     tar -xzvf science_rag_delivery_two_index.tgz && \
     rm ms-marco-MiniLM-L-6-v2.tgz && \
     rm science_rag_delivery_two_index.tgz && \
-    uv sync --no-dev --frozen
+    uv sync --no-dev --frozen --group dbc
 
 # Ensure uv env is on path
 ENV PATH="/home/python/.venv/bin:$PATH"
