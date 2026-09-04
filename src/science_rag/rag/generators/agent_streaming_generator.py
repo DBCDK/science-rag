@@ -23,10 +23,11 @@ import asyncio
 import logging
 import os
 import random
+from dataclasses import dataclass
 
+import httpx
 from openai import AsyncOpenAI
 
-from science_rag.config import GEMMA_4_26B
 from science_rag.rag.rag import Generator, Reference
 from science_rag.tools.message_history import clean_sources_from_messages
 
@@ -35,39 +36,62 @@ roles_to_ignore = ["resetter", "summarizer"]
 logger = logging.getLogger(__name__)
 
 
-def _vllm_base_url(url: str) -> str:
+def _vllm_base_url() -> str:
     """AsyncOpenAI wants the `.../v1` base and appends `chat/completions` itself.
     SCIENCE_RAG_VLLM_URL historically points at the full completions URL; strip the
     suffix defensively so both shapes of the env var work."""
+    url = os.environ.get(
+        "SCIENCE_RAG_VLLM_URL",
+        "http://vllm-gemma-4-26b-a4b-1-0.ai-staging.svc.cloud.dbc.dk/v1/chat/completions",
+    )
     return url.removesuffix("/chat/completions")
 
 
 def _max_tokens() -> int | None:
-    """Read MITCFU_MAX_TOKENS. Unset or empty means no limit (None)."""
+    """Read SCIENCE_RAG_MAX_TOKENS. Unset or empty means no limit (None)."""
     value = os.environ.get("SCIENCE_RAG_MAX_TOKENS")
     return int(value) if value else None
+
+
+def _llm_timeout_seconds() -> float:
+    """Read SCIENCE_RAG_LLM_TIMEOUT_SECONDS. The openai SDK default (600s read, 2
+    retries) can leave an interactive chat request hanging for up to 30
+    minutes on a stalled vLLM backend.
+    """
+    return float(os.environ.get("SCIENCE_RAG_LLM_TIMEOUT_SECONDS", "60"))
+
+
+def _served_model_name() -> str:
+    """Read SCIENCE_RAG_VLLM_MODEL: the model name vLLM was launched/aliased with
+    (its --served-model-name). vLLM validates the request's `model` field
+    against this exactly and 404s on any mismatch - unlike the other knobs
+    in this module there is no safe default, so fail fast at startup instead
+    of silently sending an empty model field that vLLM would reject anyway.
+    """
+    value = os.environ.get("SCIENCE_RAG_VLLM_MODEL")
+    if not value:
+        raise RuntimeError("SCIENCE_RAG_VLLM_MODEL must be set to the vLLM served model name")
+    return value
+
+
+@dataclass(frozen=True)
+class ModelBackend:
+    client: AsyncOpenAI
+    served_model_name: str
 
 
 class AgentStreamingGenerator(Generator):
     def __init__(self):
         self.streaming_delays = [0.01, 0.02, 0.03]
-        self.clients: dict[str, AsyncOpenAI] = {
-            GEMMA_4_26B: AsyncOpenAI(
-                base_url=_vllm_base_url(
-                    os.environ.get(
-                        "SCIENCE_RAG_VLLM_URL",
-                        "http://vllm-gemma-4-26b-a4b-1-0.ai-staging.svc.cloud.dbc.dk/v1/chat/completions",
-                    )
-                ),
+        self.backend = ModelBackend(
+            client=AsyncOpenAI(
+                base_url=_vllm_base_url(),
                 api_key="unused",
+                timeout=httpx.Timeout(_llm_timeout_seconds(), connect=5.0),
             ),
-        }
+            served_model_name=_served_model_name(),
+        )
         self.max_tokens = _max_tokens()
-        # If SCIENCE_RAG_VLLM_MODEL is unset, fall back to the model key rather than
-        # sending a blank "model" field to vLLM.
-        self.request_model_names = {
-            GEMMA_4_26B: os.environ.get("SCIENCE_RAG_VLLM_MODEL", ""),
-        }
         self.system_message = (
             "Du er Science-RAG. Du hjælper med søgninger et katalog af PDF'er. Du svarer altid på dansk."
         )
@@ -78,25 +102,23 @@ Forklar brugeren at du ikke kan finde svaret på spørgsmålet, og bed dem om at
 
     async def aclose(self):
         """Closes every underlying AsyncOpenAI client. Called from the service shutdown hook."""
-        for client in self.clients.values():
-            await client.close()
+        await self.backend.client.close()
 
     async def generate(
         self,
         references: list[Reference],
-        input: list[dict],
-        prompt_template: str = None,
+        input: dict,
+        prompt_template: dict,
     ):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"parsed_references: {references}")
-        logger.info(f"Replying as {prompt_template['name']} with model {prompt_template['model']}")
+        logger.info(f"Replying as {prompt_template['name']} with model {self.backend.served_model_name}")
         messages = input["input"]
         cleaned_messages = clean_sources_from_messages(messages)
 
         async for chunk in self.llm_generate(
             {
                 "messages": cleaned_messages,
-                "model_name": prompt_template["model"],
                 "prompt_template": prompt_template["prompt"],
                 "agent_type": prompt_template["name"],
             },
@@ -154,8 +176,6 @@ Forklar brugeren at du ikke kan finde svaret på spørgsmålet, og bed dem om at
             yield ref
 
     async def llm_generate(self, input, parsed_references):
-        model_key = input["model_name"]
-        client = self.clients[model_key]
         messages = self.build_messages(
             input["messages"],
             input["agent_type"],
@@ -167,14 +187,14 @@ Forklar brugeren at du ikke kan finde svaret på spørgsmålet, og bed dem om at
         # AgenticRAG.stream_response / AgenticGraph into service.py, which turns them into
         # an SSE error frame instead of silently truncating the stream.
         create_kwargs = {
-            "model": self.request_model_names.get(model_key, model_key),
+            "model": self.backend.served_model_name,
             "messages": messages,
             "stream": True,
             "temperature": 0.1,
         }
         if self.max_tokens is not None:
             create_kwargs["max_tokens"] = self.max_tokens
-        stream = await client.chat.completions.create(**create_kwargs)
+        stream = await self.backend.client.chat.completions.create(**create_kwargs)
         async for chunk in stream:
             if not chunk.choices:
                 continue

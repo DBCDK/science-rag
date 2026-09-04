@@ -14,7 +14,6 @@ DEFAULT_MODEL = GEMMA_4_26B
 # AGENT PROMPT TEMPLATES
 RAG_TEMPLATE = {
     "name": "RAG",
-    "model": DEFAULT_MODEL,
     "description": "Brugeren starter en ny forespørgsel, retter opmærksomheden mod et nyt emne inden for samme kategori, eller er ikke tilfreds med de resourcer de fik sidst. Spørgsmålet kræver ny informationssøgning i MitCFU kataloget.",
     "prompt": """
 Du modtager et spørgsmål og nogle resourcer. Du forklarer brugeren hvorfor resourcerne er relevante for deres spørgsmål.
@@ -31,7 +30,6 @@ Du overholder følgende regler:
 
 FOLLOW_UP_TEMPLATE = {
     "name": "FOLLOW_UP",
-    "model": DEFAULT_MODEL,
     "description": "Brugeren spørger om noget der tydeligt bygger videre på den forrige besked, uden ønske om supplerende eller alternative resourcer. Spørgsmålet er kort, og uden nyt emne. Svaret kan ofte findes i den tidligere kontekst eller i det tidligere svar. ",
     "prompt": """
 Du modtageren chathistorik og de sidste relevante resourcer. Du svarer på brugerens spørgsmål ud fra chathistorikken og resourcerne.
@@ -45,7 +43,6 @@ Du modtageren chathistorik og de sidste relevante resourcer. Du svarer på bruge
 
 SIMPLE_TEMPLATE = {
     "name": "SIMPLE",
-    "model": DEFAULT_MODEL,
     "description": "svarer på simple ting som hej, tak, og forklaring på hvad MitCFU er.",
     "prompt": """
 Brugeren har stillet et spørgsmål der ikke handler om specifikke MitCFU kilder, eller sagt hej, tak eller farvel.
@@ -55,7 +52,6 @@ Du svarer høftligt og kortfattet brugeren med en afslappet tone.
 
 FALLBACK_TEMPLATE = {
     "name": "FALLBACK",
-    "model": DEFAULT_MODEL,
     "description": "hvis spørgsmålet falder uden for alle andre agenter hjælper denne her brugeren på rette spor igen",
     "prompt": """
 Brugeren spørger om noget der ikke er relevant for MitCFU. Forklar brugeren at du ikke kan besvare deres spørgsmål,
@@ -73,7 +69,6 @@ def ROUTER_TEMPLATE():
     ]
     return {
         "name": "ROUTER",
-        "model": DEFAULT_MODEL,
         "descrption": "vælger hvilken agent der skal svare på den seneste besked.",
         "prompt": """
     Brugeren har sendt en besked, og det er din opgave at bedømme hvilken agent der skal håndtere beskeden.
@@ -104,7 +99,6 @@ Dit svar formateres som json sådan her:
 # TODO brug query splitting og query decomposition til bedre RAG
 REFORMULATE_TEMPLATE = {
     "name": "REFORMULATOR",
-    "model": DEFAULT_MODEL,
     "description": "Omformulerer og inddeler brugerens spørgsmål inden der laves RAG på den.",
     "prompt": """
 Du modtager en brugers henvendelse, som der skal foretages RAG på. Der søges i en vektordatabase med lærevejledninger, beskrivelser af
@@ -143,20 +137,3 @@ Output:
 }
 """,
 }
-
-
-# for evaluation, the model that should be used for comparison
-# flag -c skal sættes til True
-# ComparisonRAG = SolrRAG
-
-
-# # for comparing several retrieval models
-# from fakta_chat.rag.retrievers.meta_solr_retriever import MetaSolrRetriever
-# from fakta_chat.rag.retrievers.bm25_retriever import BM25Retriever
-# from fakta_chat.rag.retrievers.mistrale5_instruct_retriever import Mistrale5Retriever
-# from fakta_chat.rag.retrievers.ensemblers.reciprocal_rerank import ReciprocalEnsembler
-# #from nily
-# from fakta_chat.rag.retrievers.solr_retriever import SolrRetriever
-# from fakta_chat.rag.retrievers.multilinguale5_large_retriever import EmbeddingRetriever
-
-# Compare_Retrievers = [MetaSolrRetriever, BM25Retriever, Mistrale5Retriever, ReciprocalEnsembler, SolrRetriever, EmbeddingRetriever]
