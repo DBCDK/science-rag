@@ -22,7 +22,7 @@ example of usage:
 import logging
 from science_rag.rag.rag import Retriever, Reference
 from science_rag.tools import KNNSearch
-from science_rag.tools.llm_formatting import clean_sources_from_messages
+from science_rag.tools.message_history import clean_sources_from_messages
 
 # from infinity_emb import AsyncEngineArray, EngineArgs, AsyncEmbeddingEngine
 

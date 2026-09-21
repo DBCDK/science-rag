@@ -17,7 +17,6 @@ from langgraph.graph import StateGraph, END
 from typing import TypedDict
 import re
 
-from science_rag.tools.llm_formatting import async_gen_wrapper
 from science_rag.config import (
     RAG_TEMPLATE,
     SIMPLE_TEMPLATE,
@@ -25,7 +24,6 @@ from science_rag.config import (
     FALLBACK_TEMPLATE,
     FOLLOW_UP_TEMPLATE,
     REFORMULATE_TEMPLATE,
-    DEFAULT_MODEL,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,7 +81,7 @@ class AgenticGraph:
 
     async def route_response(self, messages):
         route_result_stream = await self.stream_response(messages, self.route_template)
-        raw_response = [r async for r in async_gen_wrapper(route_result_stream, DEFAULT_MODEL)]
+        raw_response = [r async for r in route_result_stream]
         route_result = "".join(raw_response)
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"Router result:\n{route_result}\n")
@@ -127,7 +125,7 @@ class AgenticGraph:
 
     async def reformulate_response(self, messages):
         reformulated_response = await self.stream_response(messages, self.reformulate_template)
-        raw_response = [r async for r in async_gen_wrapper(reformulated_response, DEFAULT_MODEL)]
+        raw_response = [r async for r in reformulated_response]
         reformulate_output = "".join(raw_response).replace("json", "").replace("```", "")
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"Reformulated response:{reformulate_output}")
