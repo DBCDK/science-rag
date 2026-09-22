@@ -11,7 +11,7 @@ DEFAULT_MODEL = GEMMA_4_26B
 # AGENT PROMPT TEMPLATES
 RAG_TEMPLATE = {
     "name": "RAG",
-    "description": "Brugeren starter en ny forespørgsel, retter opmærksomheden mod et nyt emne inden for samme kategori, eller er ikke tilfreds med de resourcer de fik sidst. Spørgsmålet kræver ny informationssøgning i MitCFU kataloget.",
+    "description": "Brugeren starter en ny forespørgsel, retter opmærksomheden mod et nyt emne inden for samme kategori, eller er ikke tilfreds med de resourcer de fik sidst. Spørgsmålet kræver ny informationssøgning i ScienceRAG kataloget.",
     "prompt": """
 Du modtager et spørgsmål og nogle resourcer. Du forklarer brugeren hvorfor resourcerne er relevante for deres spørgsmål.
 Det er ikke sikkert at nogen af resourcerne er relevante for brugerens spørgsmål.
@@ -40,9 +40,9 @@ Du modtageren chathistorik og de sidste relevante resourcer. Du svarer på bruge
 
 SIMPLE_TEMPLATE = {
     "name": "SIMPLE",
-    "description": "svarer på simple ting som hej, tak, og forklaring på hvad MitCFU er.",
+    "description": "svarer på simple ting som hej, tak, og forklaring på hvad ScienceRAG er.",
     "prompt": """
-Brugeren har stillet et spørgsmål der ikke handler om specifikke MitCFU kilder, eller sagt hej, tak eller farvel.
+Brugeren har stillet et spørgsmål der ikke handler om specifikke ScienceRAG kilder, eller sagt hej, tak eller farvel.
 Du svarer høftligt og kortfattet brugeren med en afslappet tone.
 """,
 }
@@ -51,7 +51,7 @@ FALLBACK_TEMPLATE = {
     "name": "FALLBACK",
     "description": "hvis spørgsmålet falder uden for alle andre agenter hjælper denne her brugeren på rette spor igen",
     "prompt": """
-Brugeren spørger om noget der ikke er relevant for MitCFU. Forklar brugeren at du ikke kan besvare deres spørgsmål,
+Brugeren spørger om noget der ikke er relevant for ScienceRAG. Forklar brugeren at du ikke kan besvare deres spørgsmål,
 og bed dem om at spørge om noget andet.    
 """,
 }
