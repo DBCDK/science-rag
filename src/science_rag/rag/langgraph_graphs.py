@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-:mod:`mitcfu_rag.rag.langgraph_graphs` -- utilities for handling langgraph
+:mod:`science_rag.rag.langgraph_graphs` -- utilities for handling langgraph
 
 ==================
 Langgraph graphs
@@ -50,6 +50,7 @@ class AgenticGraph:
     def create_graph(self, type):
         if type == "service":
             return self.create_service_graph()
+        raise ValueError(f"Unsupported graph type: {type!r}. Supported types: 'service'.")
 
     def create_service_graph(self):
         workflow = StateGraph(AgentState)
@@ -132,7 +133,7 @@ class AgenticGraph:
         try:
             json_response = self._extract_json(reformulate_output)
             reformulated_queries = json_response.get("søgninger", [])
-        except:
+        except AttributeError:
             logger.info("Unable to parse as json.")
             reformulated_queries = []
         return reformulated_queries

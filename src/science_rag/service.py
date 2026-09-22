@@ -35,10 +35,6 @@ INSTANCE_ID = create_instance_id(num_digits=8)
 STATS = {"query": Statistics(name="query")}
 logger = setup_logging()
 
-path_to_embeddings = "/data/rani/mitcfu-data/10plus-abstract-77295-jeds-e5-multilingual-instruct-faiss-index/embeddings"
-path_to_labels = "/data/rani/mitcfu-data/10plus-abstract-77295-jeds-e5-multilingual-instruct-faiss-index/labels.npy"
-path_to_JEDs = "/data/rani/mitcfu-data/10plus-abstract-77295-jeds"
-
 
 class GlyphGateHandler(BaseHandler):
     """
@@ -209,7 +205,6 @@ def cli():
         "faiss_path",
         metavar="faiss-path",
         help="path to faiss index",
-        default=path_to_embeddings,
     )
     parser.add_argument(
         "--article_index_path",
@@ -226,7 +221,7 @@ def cli():
     parser.add_argument(
         "--graph-type",
         dest="graph_type",
-        help="type of langgraph graph to use. default is service. possible values are service, evaluate_router",
+        help="type of langgraph graph to use. default is service. only supported value is service.",
         default="service",
     )
     parser.add_argument("-a", "--ab-id", dest="ab_id", help="ab id of service. default is 1", default=1)

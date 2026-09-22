@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
 """
-:mod:`mitcfu_rag.retrievers.embedding_retriever - embedding_retriever
+:mod:`science_rag.rag.retrievers.streaming_multilingual_retriever` - embedding_retriever
 
 ============
 EmbeddingRetriever
@@ -12,8 +12,12 @@ EmbeddingRetriever retrieves relevant references based on the messages from the 
 There is no underlying database and EmbeddingRetriever returns an dummy document.
 
 example of usage:
-    from mitcfu_rag.embedding_retriever import EmbeddingRetriever
-    e_retriever = EmbeddingRetriever()
+    from science_rag.rag.retrievers.streaming_multilingual_retriever import EmbeddingRetriever
+    e_retriever = EmbeddingRetriever(
+        model_path="/path/to/multilingual-e5-large",
+        embeddings_path="/path/to/faiss-index",
+        cross_model_path="/path/to/ms-marco-MiniLM-L-6-v2",
+    )
     messages = messages = ["Hej", "Er der noget om biblioteker?"]
     refs = e_retriever.retrieve(messages)
     print(f'relevant references: {refs}')
@@ -35,17 +39,13 @@ import json
 
 logger = logging.getLogger(__name__)
 
-EMBEDDINGS_PATH = "/data/rani/mitcfu-data/10plus-abstract-77295-jeds-e5-multilingual-instruct-faiss-index"
-MODEL_PATH = "/data/mitCFU-models/multilingual-e5-large"
-CROSS_MODEL_PATH = "/data/mitCFU-models/ms-marco-MiniLM-L-6-v2"
-
 
 class EmbeddingRetriever(Retriever):
     def __init__(
         self,
-        model_path=MODEL_PATH,
-        embeddings_path=EMBEDDINGS_PATH,
-        cross_model_path=CROSS_MODEL_PATH,
+        model_path,
+        embeddings_path,
+        cross_model_path,
         jed_document_path=None,
     ):
         # We should not use GPU for such small models, since they will take up the whole k8s GPU regardless of their size
@@ -139,7 +139,6 @@ class EmbeddingRetriever(Retriever):
             logger.debug(f"Retrieving resources for {query}")
         return await self.get_docs(query, n)
 
-    # https://huggingface.co/intfloat/multilingual-e5-large
     async def get_docs(self, query: str, limit: int = 3):
         model_device = next(self.model.parameters()).device
         batch_dict = self.tokenizer(query, max_length=512, padding=True, truncation=True, return_tensors="pt")

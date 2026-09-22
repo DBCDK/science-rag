@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
 """
-:mod:`mitcfu_rag.rag.agent_streaming_rag` -- agent_streaming_rag model
+:mod:`science_rag.rag.agent_streaming_rag` -- agent_streaming_rag model
 
 ============
 AgenticRAG
@@ -12,7 +12,7 @@ AgenticRAG is a rag model for mitcfu.
 It takes chat messages as an input and returns a response.
 
 example of usage:
-    from mitcfu_rag.rag.agent_streaming_rag import AgenticRAG
+    from science_rag.rag.agent_streaming_rag import AgenticRAG
 
     a_rag = AgenticRAG()
     messages = ["Hej", "Er der noget om miljø?"]
@@ -26,12 +26,10 @@ import asyncio
 from typing import Generator, Any
 from science_rag.rag.rag import RAG
 
-# from mitcfu_rag.rag.retrievers.streaming_mistral_retriever import Mistrale5Retriever
 from science_rag.rag.retrievers.streaming_multilingual_retriever import (
     EmbeddingRetriever,
 )
 
-# from mitcfu_rag.rag.retrievers.multilinguale5_large_retriever import EmbeddingRetriever
 from science_rag.rag.generators.agent_streaming_generator import AgentStreamingGenerator
 
 logger = logging.getLogger(__name__)
@@ -57,8 +55,7 @@ class AgenticRAG(RAG):
         )
         self.reranker = None
         self.generator = AgentStreamingGenerator()
-        if validator_model:
-            self.validator = None
+        self.validator = None
         self.summarizer = None
         self.latest_references = []
 

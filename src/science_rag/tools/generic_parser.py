@@ -178,7 +178,7 @@ class GenericParser:
 
 # example usage. Give a list of urls or paths and use the GenericParser to get a list of Document objects.
 # Document objects can be used for embedding and reference purposes in RAG solutions.
-"""
+
 if __name__ == "__main__":
     inputs = [
         "https://mitcfu.dk/pv/TV0000129447.pdf",
@@ -190,4 +190,3 @@ if __name__ == "__main__":
 
     generic_parser = GenericParser()
     all_documents = generic_parser.parse_all(inputs)
-"""

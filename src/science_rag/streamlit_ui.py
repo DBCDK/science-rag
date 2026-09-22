@@ -9,15 +9,9 @@ from openai import OpenAI
 
 from science_rag.config import DEFAULT_MODEL
 
-# from fakta_chat.config import RAG
 
-# from langchain.memory import ConversationBufferMemory
-# from langchain.chains import ConversationChain
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-relative_img_path = os.path.join(current_dir, "faktalink_icon.png")
 STREAMING_ENDPOINTS = {
-    "vllm": "http://ai-p301:5009/v1/chat/completions",
+    "vllm": "http://localhost:5009/v1/chat/completions",
 }
 STREAMING_BACKEND = os.environ.get("SCIENCE_RAG_UI_STREAM_BACKEND", "vllm").lower()
 if STREAMING_BACKEND not in STREAMING_ENDPOINTS:
@@ -93,9 +87,7 @@ if prompt := st.chat_input("Indsæt dit spørgmål her ..."):
                 stream=True,
             )
             response = st.write_stream(
-                chunk.choices[0].delta.content
-                for chunk in stream
-                if chunk.choices and chunk.choices[0].delta.content
+                chunk.choices[0].delta.content for chunk in stream if chunk.choices and chunk.choices[0].delta.content
             )
 
             st.session_state.messages.append({"role": "assistant", "content": response})
