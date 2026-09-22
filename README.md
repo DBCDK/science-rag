@@ -14,7 +14,7 @@ If you want to index your own documents using the current pipeline, see the desc
 own documents ..."
 
 ## So you want to index your own documents ...
-On ai-p301:
+On your local machine:
 1. Place all your documents (pdfs, text files, etc.) in a directory of your choice (I have mine locally under git/science-rag/data)
 2. Make a directory where you want to store your embeddings/FAISS index such as `output_embedding_dir`
 3. To parse the documents and create the faiss index, run
@@ -57,8 +57,8 @@ container is expected to be a symlink/mount to the `multilingual-e5-large-instru
 
 `--rm` ensures the docker container is closed down properly after use.
 
-If you have started the service on the server `ai-p301` you can reach it via this url:
-`http://ai-p301:<PORT_NUMBER>`
+If you have started the service on your local machine you can reach it via this url:
+`http://localhost:<PORT_NUMBER>`
 
 or locally via this url:
 `localhost:<PORT_NUMBER>`

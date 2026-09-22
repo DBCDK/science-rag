@@ -11,7 +11,7 @@ from science_rag.config import DEFAULT_MODEL
 
 
 STREAMING_ENDPOINTS = {
-    "vllm": "http://ai-p301:5009/v1/chat/completions",
+    "vllm": "http://localhost:5009/v1/chat/completions",
 }
 STREAMING_BACKEND = os.environ.get("SCIENCE_RAG_UI_STREAM_BACKEND", "vllm").lower()
 if STREAMING_BACKEND not in STREAMING_ENDPOINTS:
