@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-:mod:`fakta_chat.tools.semantic_splitter -- splits text based on semantic boundaries
+:mod:`science_rag.tools.semantic_splitter -- splits text based on semantic boundaries
 
 =================
 Semantic Splitter

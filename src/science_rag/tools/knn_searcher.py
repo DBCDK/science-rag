@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""":mod:`fakta_chat.tools.semantic_splitter -- knn search engine
+""":mod:`science_rag.tools.knn_searcher -- knn search engine
 
 =========
 KNNSearch
@@ -17,7 +17,7 @@ NOTE: The cast to float (astype('f')) in the example below is not
 
 Example of usage:
 
-    In [1]: from fakta_chat.tools import KNNSearch
+    In [1]: from science_rag.tools import KNNSearch
             import numpy as np
 
             np.random.seed(1)

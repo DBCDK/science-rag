@@ -236,15 +236,6 @@ wheels = [
 ]
 
 [[package]]
-name = "asyncio"
-version = "4.0.0"
-source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }
-sdist = { url = "https://devpi.dbccloud.dk/root/pypi/+f/570/cd9e50db83bc1/asyncio-4.0.0.tar.gz", hash = "sha256:570cd9e50db83bc1629152d4d0b7558d6451bb1bfd5dfc2e935d96fc2f40329b" }
-wheels = [
-    { url = "https://devpi.dbccloud.dk/root/pypi/+f/c1e/ddb0659231837/asyncio-4.0.0-py3-none-any.whl", hash = "sha256:c1eddb0659231837046809e68103969b2bef8b0400d59cfa6363f6b5ed8cc88b" },
-]
-
-[[package]]
 name = "attrs"
 version = "26.1.0"
 source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }
@@ -1428,35 +1419,6 @@ dependencies = [
 sdist = { url = "https://devpi.dbccloud.dk/root/pypi/+f/b54/0987f239e7456/jsonschema_specifications-2025.9.1.tar.gz", hash = "sha256:b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d" }
 wheels = [
     { url = "https://devpi.dbccloud.dk/root/pypi/+f/988/02fee3a11ee76/jsonschema_specifications-2025.9.1-py3-none-any.whl", hash = "sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe" },
-]
-
-[[package]]
-name = "keybert"
-version = "0.9.0"
-source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }
-dependencies = [
-    { name = "numpy" },
-    { name = "rich" },
-    { name = "scikit-learn" },
-    { name = "sentence-transformers" },
-]
-sdist = { url = "https://devpi.dbccloud.dk/root/pypi/+f/eec/8ebd37d3d9fa2/keybert-0.9.0.tar.gz", hash = "sha256:eec8ebd37d3d9fa238d7075e727adb993de4f3ed67c94112840e4cc0e55d7657" }
-wheels = [
-    { url = "https://devpi.dbccloud.dk/root/pypi/+f/afa/2f300a72f69d2/keybert-0.9.0-py3-none-any.whl", hash = "sha256:afa2f300a72f69d279e4482bc85d8b34493b119876dc0818cb4f260466285b36" },
-]
-
-[[package]]
-name = "langchain"
-version = "1.3.2"
-source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }
-dependencies = [
-    { name = "langchain-core" },
-    { name = "langgraph" },
-    { name = "pydantic" },
-]
-sdist = { url = "https://devpi.dbccloud.dk/root/pypi/+f/ffd/5f204a46b5fa1/langchain-1.3.2.tar.gz", hash = "sha256:ffd5f204a46b5fa1a38bf89ba3b45ca0902c02d18fa7d2a2eaeaeb1f5bf19d0a" }
-wheels = [
-    { url = "https://devpi.dbccloud.dk/root/pypi/+f/900/f6b3f4ee08b9b/langchain-1.3.2-py3-none-any.whl", hash = "sha256:900f6b3f4ee08b9ba3cdbe667dbf42525bd6f66a4a07a7f1db26262673e41ed6" },
 ]
 
 [[package]]
@@ -3499,18 +3461,6 @@ wheels = [
 ]
 
 [[package]]
-name = "rank-bm25"
-version = "0.2.2"
-source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }
-dependencies = [
-    { name = "numpy" },
-]
-sdist = { url = "https://devpi.dbccloud.dk/root/pypi/+f/096/ccef76f818856/rank_bm25-0.2.2.tar.gz", hash = "sha256:096ccef76f8188563419aaf384a02f0ea459503fdf77901378d4fd9d87e5e51d" }
-wheels = [
-    { url = "https://devpi.dbccloud.dk/root/pypi/+f/7bd/4a95571adadfc/rank_bm25-0.2.2-py3-none-any.whl", hash = "sha256:7bd4a95571adadfc271746fa146a4bcfd89c0cf731e49c3d1ad863290adbe8ae" },
-]
-
-[[package]]
 name = "rapidocr"
 version = "3.8.1"
 source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }
@@ -3924,29 +3874,21 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "accelerate" },
-    { name = "asyncio" },
     { name = "dbc-pyutils", version = "0.2.296", source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }, marker = "python_full_version < '3.12'" },
     { name = "dbc-pyutils", version = "0.2.354", source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }, marker = "python_full_version >= '3.12'" },
     { name = "docling" },
     { name = "faiss-cpu" },
-    { name = "keybert" },
-    { name = "langchain" },
     { name = "langchain-community" },
-    { name = "langchain-text-splitters" },
     { name = "langchain-unstructured" },
     { name = "langgraph" },
-    { name = "langsmith" },
     { name = "nltk" },
     { name = "numpy" },
     { name = "openai" },
-    { name = "pydantic" },
-    { name = "rank-bm25" },
     { name = "requests" },
     { name = "rich" },
     { name = "scikit-learn" },
     { name = "sentence-transformers" },
     { name = "streamlit" },
-    { name = "tokenizers" },
     { name = "torch" },
     { name = "tornado" },
     { name = "transformers" },
@@ -3963,28 +3905,20 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "accelerate" },
-    { name = "asyncio" },
     { name = "dbc-pyutils" },
     { name = "docling" },
     { name = "faiss-cpu", specifier = ">=1.14.2" },
-    { name = "keybert" },
-    { name = "langchain" },
     { name = "langchain-community" },
-    { name = "langchain-text-splitters" },
     { name = "langchain-unstructured" },
     { name = "langgraph" },
-    { name = "langsmith" },
     { name = "nltk" },
     { name = "numpy" },
     { name = "openai" },
-    { name = "pydantic" },
-    { name = "rank-bm25" },
     { name = "requests" },
     { name = "rich" },
     { name = "scikit-learn" },
     { name = "sentence-transformers" },
     { name = "streamlit" },
-    { name = "tokenizers" },
     { name = "torch" },
     { name = "tornado" },
     { name = "transformers" },
