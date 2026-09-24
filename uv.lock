@@ -807,11 +807,11 @@ name = "fastapi"
 version = "0.136.3"
 source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }
 dependencies = [
-    { name = "annotated-doc", marker = "python_full_version >= '3.12'" },
-    { name = "pydantic", marker = "python_full_version >= '3.12'" },
-    { name = "starlette", marker = "python_full_version >= '3.12'" },
-    { name = "typing-extensions", marker = "python_full_version >= '3.12'" },
-    { name = "typing-inspection", marker = "python_full_version >= '3.12'" },
+    { name = "annotated-doc" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
 ]
 sdist = { url = "https://devpi.dbccloud.dk/root/pypi/+f/e48/7fae93ad408e6/fastapi-0.136.3.tar.gz", hash = "sha256:e487fae93ad408e6f47641ee4dfe389864fd7bec92e547ea8498fc13f43e83ab" }
 wheels = [
@@ -3874,10 +3874,10 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "accelerate" },
-    { name = "dbc-pyutils", version = "0.2.296", source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }, marker = "python_full_version < '3.12'" },
-    { name = "dbc-pyutils", version = "0.2.354", source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }, marker = "python_full_version >= '3.12'" },
     { name = "docling" },
     { name = "faiss-cpu" },
+    { name = "fastapi" },
+    { name = "httpx" },
     { name = "langchain-community" },
     { name = "langchain-unstructured" },
     { name = "langgraph" },
@@ -3890,11 +3890,15 @@ dependencies = [
     { name = "sentence-transformers" },
     { name = "streamlit" },
     { name = "torch" },
-    { name = "tornado" },
     { name = "transformers" },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
+dbc = [
+    { name = "dbc-pyutils", version = "0.2.296", source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }, marker = "python_full_version < '3.12'" },
+    { name = "dbc-pyutils", version = "0.2.354", source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }, marker = "python_full_version >= '3.12'" },
+]
 dev = [
     { name = "pip-audit" },
     { name = "pre-commit" },
@@ -3905,9 +3909,10 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "accelerate" },
-    { name = "dbc-pyutils" },
     { name = "docling" },
     { name = "faiss-cpu", specifier = ">=1.14.2" },
+    { name = "fastapi" },
+    { name = "httpx" },
     { name = "langchain-community" },
     { name = "langchain-unstructured" },
     { name = "langgraph" },
@@ -3920,11 +3925,12 @@ requires-dist = [
     { name = "sentence-transformers" },
     { name = "streamlit" },
     { name = "torch" },
-    { name = "tornado" },
     { name = "transformers" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata.requires-dev]
+dbc = [{ name = "dbc-pyutils" }]
 dev = [
     { name = "pip-audit" },
     { name = "pre-commit" },

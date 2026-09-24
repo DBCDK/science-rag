@@ -31,6 +31,9 @@ you can optionally include Astra .csv files (to be preprocessed, chunked and ind
 `streaming-service-science-rag /data/mitCFU-models/multilingual-e5-large output_embedding_dir --article_index_path name_of_output_chunk_document --validator-model-path /data/mitCFU-models/ms-marco-MiniLM-L-6-v2 
 --verbose --port 5011`
 
+The service is FastAPI/uvicorn-based; once it's running, interactive API docs are available at
+`/docs` and `/redoc` (e.g. `http://localhost:5011/docs`).
+
 6. You can then start Streamlit using:
 streamlit run src/science_rag/streamlit_ui.py --server.port 8111
 7. Hooray! You should now be able to query your own documents using RAG.
@@ -46,14 +49,14 @@ The build downloads the validator model and FAISS index/document-chunks bundle f
 via `MODEL_PATH`/`FAISS_PATH`/`INDEX_PATH` build args (see `Dockerfile`); these resolve from
 `ARTIFACTORY_URL`/`AI_PRODUCTION`/`AI_DOCKER_LAYERS`, which CI (the `buildImage()` step in
 `Jenkinsfile`) sets automatically. Building locally requires those set in your environment too.
+The image's `uv sync` also installs the `dbc` dependency group (`dbc_pyutils`), which a plain
+local `uv sync`/`pytest` does not — see "Optional `dbc_pyutils` integration" below.
 
 The embedding model itself is **not** baked into the image — `/data/science-rag-1-0` inside the
 container is expected to be a symlink/mount to the `multilingual-e5-large-instruct` model
 (on k8s this comes from a volume mount). Run the image with that path mounted:
 
 `docker run -v /path/to/multilingual-e5-large-instruct:/data/science-rag-1-0 -p 5011:5000 -it $USER/science-rag`
-
-`-e LOG_FORMAT=text` gives you log output in text instead of json.
 
 `--rm` ensures the docker container is closed down properly after use.
 
@@ -62,6 +65,19 @@ If you have started the service on your local machine you can reach it via this 
 
 or locally via this url:
 `localhost:<PORT_NUMBER>`
+
+## Optional `dbc_pyutils` integration
+The service works fully without any internal DBC package installed — a plain `uv sync`/`pip
+install -e .` gives you the whole RAG pipeline and API. `dbc_pyutils` (installed via `uv sync
+--group dbc`, DBC network access required) unlocks a few extras used on DBC cluster
+hardware/CI, gated automatically at startup:
+
+- **`/status`**: without `dbc_pyutils`, a bare `{"status": "ok"}`. With it, an enriched payload
+  with build/git/version info, an instance id, memory usage, and query statistics.
+- **`/metrics`**: omitted entirely without `dbc_pyutils`. With it, a Prometheus-format scrape
+  endpoint.
+- **Logging**: without `dbc_pyutils`, plain stdlib logging (`logging.basicConfig`). With it,
+  structured JSON logs. Nothing is configurable via an env var either way.
 
 ## Create faiss embeddings (alternate indexing path)
 `create-faiss-index` is a simpler, direct embed-and-index CLI (`rag/retrievers/indexes/multilinguale5.py`),
