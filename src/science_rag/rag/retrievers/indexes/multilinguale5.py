@@ -133,7 +133,13 @@ def index_paragraph_docs_GPU_batches(
         batch_size=False,
         create_new_index_extract=False,
         path_to_folder: str|None=None,
+        embedder=None,
 ):
+    """Embed the abstracts in path_to_index_file and save a FAISS db to path.
+
+    embedder: object with an `encode(texts) -> np.ndarray` method, e.g. retrieval_utils' RemoteEmbedder.
+    If None, multilingual-e5-large-instruct is loaded locally.
+    """
     if create_new_index_extract is True:
         if not path_to_folder:
             logger.info("path_to_folder must be specified")
@@ -163,8 +169,13 @@ def index_paragraph_docs_GPU_batches(
     with open(path_to_index_file, "r") as file:
         data = json.load(file)
 
-    e5_embedder = e5multilingualEmbedder("/data/huggingface/intfloat/multilingual-e5-large-instruct/")
-    logger.info(f"Using device: {e5_embedder.device}")
+    if embedder is None:
+        e5_embedder = e5multilingualEmbedder("/data/huggingface/intfloat/multilingual-e5-large-instruct/")
+        logger.info(f"Using device: {e5_embedder.device}")
+        embed_documents = e5_embedder.embed_documents
+    else:
+        logger.info(f"Using embedder: {type(embedder).__name__}")
+        embed_documents = embedder.encode
     db = None
 
     # texts = []
@@ -195,7 +206,7 @@ def index_paragraph_docs_GPU_batches(
 
             # Check if the batch size is reached, so we can start embedding the current batch. Otherwise, we continue filling the batch
             if len(abstracts_to_embed_batch) >= batch_size:
-                embeddings_for_this_batch = e5_embedder.embed_documents(
+                embeddings_for_this_batch = embed_documents(
                     abstracts_to_embed_batch
                 )
                 embeddings.extend(embeddings_for_this_batch)
@@ -207,7 +218,7 @@ def index_paragraph_docs_GPU_batches(
 
     # Check if there are any remaining embeddings in the (final) batch
     if abstracts_to_embed_batch:
-        embeddings_for_this_batch = e5_embedder.embed_documents(
+        embeddings_for_this_batch = embed_documents(
             abstracts_to_embed_batch
         )
         embeddings.extend(embeddings_for_this_batch)

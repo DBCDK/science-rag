@@ -39,7 +39,10 @@ dev = [
     "ruff",
     "pip-audit",
 ]
-dbc = ["dbc_pyutils"]
+dbc = [
+    "dbc_pyutils",
+    "retrieval-utils",
+]
 
 [project.scripts]
 create-faiss-index = "science_rag.rag.retrievers.indexes.multilinguale5:main"

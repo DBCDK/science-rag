@@ -3655,6 +3655,19 @@ wheels = [
 ]
 
 [[package]]
+name = "retrieval-utils"
+version = "0.1.20"
+source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }
+dependencies = [
+    { name = "httpx" },
+    { name = "numpy" },
+    { name = "tenacity" },
+]
+wheels = [
+    { url = "https://devpi.dbccloud.dk/dbc/packages/+f/bf8/093953fa61f5f/retrieval_utils-0.1.20-py3-none-any.whl", hash = "sha256:bf8093953fa61f5f823cdbe9032916a66290eb64ef8148368aeba493a4973433" },
+]
+
+[[package]]
 name = "rich"
 version = "15.0.0"
 source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }
@@ -3905,6 +3918,7 @@ dependencies = [
 dbc = [
     { name = "dbc-pyutils", version = "0.2.296", source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }, marker = "python_full_version < '3.12'" },
     { name = "dbc-pyutils", version = "0.2.354", source = { registry = "https://devpi.dbccloud.dk/dbc/packages/+simple/" }, marker = "python_full_version >= '3.12'" },
+    { name = "retrieval-utils" },
 ]
 dev = [
     { name = "pip-audit" },
@@ -3937,7 +3951,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dbc = [{ name = "dbc-pyutils" }]
+dbc = [
+    { name = "dbc-pyutils" },
+    { name = "retrieval-utils" },
+]
 dev = [
     { name = "pip-audit" },
     { name = "pre-commit" },

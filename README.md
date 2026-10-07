@@ -19,11 +19,22 @@ On your local machine:
 2. Make a directory where you want to store your embeddings/FAISS index such as `output_embedding_dir`
 3. To parse the documents and create the faiss index, run
 
-`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/`
+`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --link-map path/to/science_rag_link_map.csv`
+
+`--link-map` is a csv with one row per document, keyed on `filename`, that gives each document its source and metadata
+(see `preprocessing/link_map.py`). `url` and `title` become `URL` and `Title` in the chunk metadata (`#page=N` is only
+added to pdf links), and the columns `afsender`, `fag`, `klassetrin`, `forloeb`, `indskoling`, `mellemtrin`, `udskoling`
+and `laerervejledning` are added when they have a value. Documents without a row or url fall back to their filename.
 
 you can optionally include Astra .csv files (to be preprocessed, chunked and indexed together with the documents) using the following flags: 
 
-`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --aktiviteter-csv path/to/aktiviteter.csv --forlob-csv path/to/forlob.csv`
+`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --link-map path/to/science_rag_link_map.csv --aktiviteter-csv path/to/aktiviteter.csv --forlob-csv path/to/forlob.csv`
+
+By default the chunks are embedded locally with `multilingual-e5-large-instruct`. To embed with a remote
+OpenAI-compatible endpoint instead (requires `uv sync --group dbc` for `retrieval-utils`), add
+`--embedding-endpoint http://glyph-gate-1-0.ai-prod.svc.cloud.dbc.dk/v1/embeddings`. The api key is read from the
+environment variable named by `--embedding-api-key-env` (default `GLYPH_GATE_KEY`), and `--embedding-model` sets the
+model name sent to the endpoint (default `intfloat/multilingual-e5-large-instruct`).
 
 4. When starting the RAG service, point to the location of the json file list and the FAISS index (as well as embedding/validator models).
 5. You can start the service using: 
