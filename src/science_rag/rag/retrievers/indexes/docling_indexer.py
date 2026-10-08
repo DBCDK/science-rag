@@ -11,6 +11,7 @@ from science_rag.preprocessing.astra_df_to_chunked_docs import astra_df_to_docli
 from science_rag.preprocessing.astra_preprocessor import AstraPreprocessor
 from science_rag.preprocessing.link_map import chunk_url, extra_metadata, load_link_map, nfc
 from science_rag.rag.retrievers.indexes.multilinguale5 import index_paragraph_docs_GPU_batches
+from science_rag.tools.embedder import OpenAIEmbedder
 
 # Importing standard config for Astra csv's ---> which columns use for abstract and metadata
 # all columns not listed: used in abstact.
@@ -68,14 +69,9 @@ def get_docling_chunks(input_file, link_map, converter, chunker):
 
 
 def get_remote_embedder(endpoint_url, model):
-    try:
-        from retrieval_utils.embedders import RemoteEmbedder
-    except ImportError as e:
-        raise RuntimeError("Remote embedding requires retrieval-utils; install it with `uv sync --group dbc`") from e
-
     if not GLYPHGATE_API_KEY:
         logger.warning(f"The env-var GLYPHGATE_API_KEY is not set, calling {endpoint_url} without an api key")
-    return RemoteEmbedder(endpoint_url=endpoint_url, model=model, api_key=GLYPHGATE_API_KEY)
+    return OpenAIEmbedder(base_url=endpoint_url, model=model, api_key=GLYPHGATE_API_KEY)
 
 
 def parse_args():
@@ -116,7 +112,7 @@ def parse_args():
         type=str,
         required=False,
         default=None,
-        help="(Optional) OpenAI-compatible /v1/embeddings endpoint. If not set, embeds locally on GPU/CPU.",
+        help="(Optional) base url (`.../v1`) of an OpenAI-compatible embeddings endpoint. If not set, embeds locally on GPU/CPU.",
     )
     parser.add_argument(
         "--embedding-model",

@@ -18,7 +18,6 @@ dependencies = [
     "scikit-learn",
     "numpy",
     "nltk>=3.10.3",
-    "docling",
     "sentence_transformers>=6.1.0",
     "rich",
     "transformers",
@@ -34,6 +33,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "docling",
     "pre-commit",
     "pytest",
     "ruff",
@@ -41,7 +41,6 @@ dev = [
 ]
 dbc = [
     "dbc_pyutils",
-    "retrieval-utils",
 ]
 
 [project.scripts]

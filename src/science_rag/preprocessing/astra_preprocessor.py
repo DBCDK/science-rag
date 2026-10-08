@@ -1,8 +1,11 @@
 import re
 import html
+import logging
 from typing import Optional
 
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 
 class AstraPreprocessor:
@@ -96,6 +99,11 @@ class AstraPreprocessor:
         metadata_cols = metadata_cols or []
         exclude_cols = exclude_cols or []
         exclude_col_if_contains = exclude_col_if_contains or []
+
+        missing_cols = [col for col in metadata_cols if col not in df.columns]
+        if missing_cols:
+            logger.warning(f"Metadata columns {missing_cols} are not in the csv and are left out of the metadata")
+            metadata_cols = [col for col in metadata_cols if col in df.columns]
 
         df = df.copy()
         df["page_content_raw"] = ""

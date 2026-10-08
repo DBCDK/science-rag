@@ -22,6 +22,61 @@ def _df_to_json_safe_dict(value):
     return value
 
 
+# Astra school levels -> grade ranges, in the "4.-6." format used by the link map
+SCHOOL_LEVEL_GRADES = {"Indskoling": (0, 3), "Mellemtrin": (4, 6), "Udskoling": (7, 9)}
+
+# The Astra exports have no URL column, but astra.dk is WordPress and redirects ?p=<post ID> to the page
+ASTRA_URL_TEMPLATE = "https://astra.dk/?p={id}"
+
+
+def _astra_url(post_id) -> str | None:
+    """2623 / 2623.0 / '2623' -> 'https://astra.dk/?p=2623'; missing or non-numeric IDs give None."""
+    try:
+        return ASTRA_URL_TEMPLATE.format(id=int(float(post_id)))
+    except (TypeError, ValueError):
+        return None
+
+
+def _astra_fag(fag: str) -> str | None:
+    """'Grundskole>Biologi|Grundskole>Fysik/Kemi' -> 'Biologi, Fysik/Kemi'; level-only entries are dropped."""
+    subjects = [entry.split(">", 1)[1] for entry in fag.split("|") if ">" in entry]
+    return ", ".join(dict.fromkeys(subjects)) or None
+
+
+def _astra_klassetrin(levels: list[str]) -> str | None:
+    """['Mellemtrin', 'Udskoling', 'EUD'] -> '4.-9., EUD'; adjacent school levels are merged into one range."""
+    ranges = sorted(SCHOOL_LEVEL_GRADES[level] for level in levels if level in SCHOOL_LEVEL_GRADES)
+    merged = []
+    for first, last in ranges:
+        if merged and first == merged[-1][1] + 1:
+            merged[-1] = (merged[-1][0], last)
+        else:
+            merged.append((first, last))
+    parts = [f"{first}.-{last}." for first, last in merged]
+    parts += [level for level in levels if level not in SCHOOL_LEVEL_GRADES]
+    return ", ".join(parts) or None
+
+
+def harmonize_astra_metadata(metadata: dict, afsender: str = "Astra") -> dict:
+    """
+    Align Astra metadata with the metadata the link map gives the pdf documents (see link_map.py):
+    adds Afsender, adds URL from the WordPress post ID if missing, rewrites Fag and Klassetrin to the
+    link map format, and adds the Indskoling/Mellemtrin/Udskoling booleans from Klassetrin.
+    Empty values are left out.
+    """
+    metadata = {**metadata, "Afsender": afsender}
+    if not metadata.get("URL"):
+        metadata["URL"] = _astra_url(metadata.get("ID"))
+    if isinstance(metadata.get("Fag"), str):
+        metadata["Fag"] = _astra_fag(metadata["Fag"])
+    if isinstance(metadata.get("Klassetrin"), str):
+        levels = [level.strip() for level in metadata["Klassetrin"].split("|") if level.strip()]
+        metadata["Klassetrin"] = _astra_klassetrin(levels)
+        for level in SCHOOL_LEVEL_GRADES:
+            metadata[level] = level in levels
+    return {k: v for k, v in metadata.items() if v is not None}
+
+
 def astra_df_to_docling_chunks(
     df: pd.DataFrame,
     preprocessor: AstraPreprocessor,
@@ -72,7 +127,7 @@ def astra_df_to_docling_chunks(
 
         # Base metadata is all metadata columns (see astra_csv_cols_config.py).
         # Should contain at least URL and Title, which are used downstream during generation.
-        base_metadata = {k: _df_to_json_safe_dict(v) for k, v in row["metadata"].items()}
+        base_metadata = harmonize_astra_metadata({k: _df_to_json_safe_dict(v) for k, v in row["metadata"].items()})
         doc_name = base_metadata.get("Title", "No_Title").replace(" ", "_").replace(",", "")
         doc = converter.convert_string(content=page_content, format=InputFormat.MD, name=doc_name).document
 

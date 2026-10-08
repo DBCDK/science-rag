@@ -137,7 +137,7 @@ def index_paragraph_docs_GPU_batches(
 ):
     """Embed the abstracts in path_to_index_file and save a FAISS db to path.
 
-    embedder: object with an `encode(texts) -> np.ndarray` method, e.g. retrieval_utils' RemoteEmbedder.
+    embedder: object with an `encode(texts) -> np.ndarray` method, e.g. science_rag.tools.embedder.OpenAIEmbedder.
     If None, multilingual-e5-large-instruct is loaded locally.
     """
     if create_new_index_extract is True:

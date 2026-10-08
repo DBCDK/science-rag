@@ -30,11 +30,16 @@ you can optionally include Astra .csv files (to be preprocessed, chunked and ind
 
 `python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --link-map path/to/science_rag_link_map.csv --aktiviteter-csv path/to/aktiviteter.csv --forlob-csv path/to/forlob.csv`
 
+The Astra exports have no url column, so each aktivitet/forløb gets `URL` = `https://astra.dk/?p=<ID>`, built from the
+`ID` column (the WordPress post ID, which astra.dk redirects to the page). This happens in `harmonize_astra_metadata` in
+`preprocessing/astra_df_to_chunked_docs.py`, which also adds `Afsender` and rewrites `Fag`/`Klassetrin` to the link map
+format. Rows without a valid `ID` get no `URL`.
+
 By default the chunks are embedded locally with `multilingual-e5-large-instruct`. To embed with a remote
-OpenAI-compatible endpoint instead (requires `uv sync --group dbc` for `retrieval-utils`), add
-`--embedding-endpoint http://glyph-gate-1-0.ai-prod.svc.cloud.dbc.dk/v1/embeddings`. The api key is read from the
-environment variable named by `--embedding-api-key-env` (default `GLYPH_GATE_KEY`), and `--embedding-model` sets the
-model name sent to the endpoint (default `intfloat/multilingual-e5-large-instruct`).
+Glyphgate embeddings endpoint instead, add `--embedding-endpoint http://glyph-gate-1-0.ai-prod.svc.cloud.dbc.dk/v1` (a full
+`.../v1/embeddings` url works too). The api key, if the endpoint needs one, is read from the environment variable
+`GLYPHGATE_API_KEY`, and `--embedding-model` sets the model name sent to the endpoint (default
+`intfloat/multilingual-e5-large-instruct`). The index must be embedded with the same model the service uses for queries.
 
 4. When starting the RAG service, point to the location of the json file list and the FAISS index (as well as embedding/validator models).
 5. You can start the service using: 
