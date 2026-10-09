@@ -1,6 +1,11 @@
+import json
+
 import pytest
 
 from science_rag.preprocessing.astra_df_to_chunked_docs import harmonize_astra_metadata
+from science_rag.preprocessing.link_map import load_astra_links
+
+ASTRA_LINKS = {"Foretag en hjertedissektion": "https://astra.dk/aktiviteter/foretag-en-hjertedissektion/"}
 
 
 @pytest.mark.parametrize(
@@ -56,3 +61,33 @@ def test_url_left_out_without_valid_id(post_id):
 
 def test_existing_url_is_kept():
     assert harmonize_astra_metadata({"ID": 2623, "URL": "https://astra.dk/x"})["URL"] == "https://astra.dk/x"
+
+
+def test_url_from_astra_links():
+    metadata = harmonize_astra_metadata({"ID": 2636, "Title": "Foretag en hjertedissektion"}, astra_links=ASTRA_LINKS)
+    assert metadata["URL"] == "https://astra.dk/aktiviteter/foretag-en-hjertedissektion/"
+
+
+def test_astra_links_takes_precedence_over_existing_url():
+    metadata = harmonize_astra_metadata(
+        {"Title": "Foretag en hjertedissektion", "URL": "https://astra.dk/x"}, astra_links=ASTRA_LINKS
+    )
+    assert metadata["URL"] == "https://astra.dk/aktiviteter/foretag-en-hjertedissektion/"
+
+
+def test_title_not_in_astra_links_falls_back_to_id():
+    metadata = harmonize_astra_metadata({"ID": 2623, "Title": "Ukendt"}, astra_links=ASTRA_LINKS)
+    assert metadata["URL"] == "https://astra.dk/?p=2623"
+
+
+def test_astra_links_lookup_is_unicode_normalized():
+    decomposed = "Ga\u030adefulde verden - halvleder"  # "å" as "a" + combining ring
+    links = {"G\u00e5defulde verden - halvleder": "https://astra.dk/forlob/gaadefulde-verden-halvleder/"}
+    metadata = harmonize_astra_metadata({"Title": decomposed}, astra_links=links)
+    assert metadata["URL"] == "https://astra.dk/forlob/gaadefulde-verden-halvleder/"
+
+
+def test_load_astra_links(tmp_path):
+    path = tmp_path / "astra_links.json"
+    path.write_text(json.dumps(ASTRA_LINKS, ensure_ascii=False), encoding="utf-8")
+    assert load_astra_links(path) == ASTRA_LINKS

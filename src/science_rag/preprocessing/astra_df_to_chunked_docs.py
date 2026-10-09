@@ -3,6 +3,7 @@ from docling.document_converter import DocumentConverter
 from docling.chunking import HybridChunker
 from docling.datamodel.base_models import InputFormat
 from science_rag.preprocessing.astra_preprocessor import AstraPreprocessor
+from science_rag.preprocessing.link_map import nfc
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,8 @@ def _df_to_json_safe_dict(value):
 # Astra school levels -> grade ranges, in the "4.-6." format used by the link map
 SCHOOL_LEVEL_GRADES = {"Indskoling": (0, 3), "Mellemtrin": (4, 6), "Udskoling": (7, 9)}
 
-# The Astra exports have no URL column, but astra.dk is WordPress and redirects ?p=<post ID> to the page
+# The Astra exports have no URL column. Pages are looked up by title in astra_links.json, and as a
+# fallback astra.dk (WordPress) redirects ?p=<post ID> to the page
 ASTRA_URL_TEMPLATE = "https://astra.dk/?p={id}"
 
 
@@ -57,15 +59,20 @@ def _astra_klassetrin(levels: list[str]) -> str | None:
     return ", ".join(parts) or None
 
 
-def harmonize_astra_metadata(metadata: dict, afsender: str = "Astra") -> dict:
+def harmonize_astra_metadata(
+    metadata: dict, afsender: str = "Astra", astra_links: dict[str, str] | None = None
+) -> dict:
     """
     Align Astra metadata with the metadata the link map gives the pdf documents (see link_map.py):
-    adds Afsender, adds URL from the WordPress post ID if missing, rewrites Fag and Klassetrin to the
-    link map format, and adds the Indskoling/Mellemtrin/Udskoling booleans from Klassetrin.
-    Empty values are left out.
+    adds Afsender, sets URL from `astra_links` (title -> url) or else keeps an existing URL or else
+    builds it from the WordPress post ID, rewrites Fag and Klassetrin to the link map format, and adds
+    the Indskoling/Mellemtrin/Udskoling booleans from Klassetrin. Empty values are left out.
     """
     metadata = {**metadata, "Afsender": afsender}
-    if not metadata.get("URL"):
+    title = metadata.get("Title")
+    if astra_links and isinstance(title, str) and nfc(title) in astra_links:
+        metadata["URL"] = astra_links[nfc(title)]
+    elif not metadata.get("URL"):
         metadata["URL"] = _astra_url(metadata.get("ID"))
     if isinstance(metadata.get("Fag"), str):
         metadata["Fag"] = _astra_fag(metadata["Fag"])
@@ -83,6 +90,7 @@ def astra_df_to_docling_chunks(
     metadata_cols: list[str],
     exclude_cols: list[str],
     exclude_col_if_contains: list[str],
+    astra_links: dict[str, str] | None = None,
 ):
     """
     Convert a DataFrame to Docling chunks in a jedish-compatible format. This format is a list of
@@ -96,6 +104,8 @@ def astra_df_to_docling_chunks(
         metadata_cols (list[str]): List of column names to keep as metadata and not use in abstract.
         exclude_cols (list[str]): List of column names to exclude from the abstract.
         exclude_col_if_contains (list[str]): List of substrings; any column containing these are excluded from abstract.
+        astra_links (dict[str, str] | None): Map from page title to url (see load_astra_links). Pages not in the map
+            get a ?p=<ID> url.
 
     Returns:
         list[dict]: A list of dictionaries, where each dictionary has a chunk ID as key and a
@@ -127,7 +137,9 @@ def astra_df_to_docling_chunks(
 
         # Base metadata is all metadata columns (see astra_csv_cols_config.py).
         # Should contain at least URL and Title, which are used downstream during generation.
-        base_metadata = harmonize_astra_metadata({k: _df_to_json_safe_dict(v) for k, v in row["metadata"].items()})
+        base_metadata = harmonize_astra_metadata(
+            {k: _df_to_json_safe_dict(v) for k, v in row["metadata"].items()}, astra_links=astra_links
+        )
         doc_name = base_metadata.get("Title", "No_Title").replace(" ", "_").replace(",", "")
         doc = converter.convert_string(content=page_content, format=InputFormat.MD, name=doc_name).document
 

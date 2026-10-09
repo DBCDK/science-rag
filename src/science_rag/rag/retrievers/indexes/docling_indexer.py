@@ -9,7 +9,7 @@ from docling.document_converter import DocumentConverter
 
 from science_rag.preprocessing.astra_df_to_chunked_docs import astra_df_to_docling_chunks
 from science_rag.preprocessing.astra_preprocessor import AstraPreprocessor
-from science_rag.preprocessing.link_map import chunk_url, extra_metadata, load_link_map, nfc
+from science_rag.preprocessing.link_map import chunk_url, extra_metadata, load_astra_links, load_link_map, nfc
 from science_rag.rag.retrievers.indexes.multilinguale5 import index_paragraph_docs_GPU_batches
 from science_rag.tools.embedder import OpenAIEmbedder
 
@@ -108,6 +108,13 @@ def parse_args():
     )
     parser.add_argument("--forlob-csv", type=str, required=False, help="(Optional) Path to the Forløb CSV file.")
     parser.add_argument(
+        "--astra-links",
+        type=str,
+        required=False,
+        help="(Optional) path to json map from Astra page title to url, e.g. data/astra_links.json. "
+        "Pages not in the map get a https://astra.dk/?p=<ID> url.",
+    )
+    parser.add_argument(
         "--embedding-endpoint",
         type=str,
         required=False,
@@ -147,6 +154,9 @@ def main():
     # Initializing preprocessor only if we have to preprocess Astra CSV files
     if args.aktiviteter_csv or args.forlob_csv:
         preprocessor = AstraPreprocessor()
+        astra_links = load_astra_links(args.astra_links) if args.astra_links else None
+        if astra_links is None:
+            logger.warning("No --astra-links given, Astra pages get https://astra.dk/?p=<ID> urls")
 
     # Reading and preprocessing activities (aktiviteter)
     if args.aktiviteter_csv:
@@ -157,6 +167,7 @@ def main():
             metadata_cols=AKTIVITETER_METADATA_COLS,
             exclude_cols=AKTIVITETER_EXCLUDE_COLS,
             exclude_col_if_contains=AKTIVITETER_EXCLUDE_COL_IF_CONTAINS,
+            astra_links=astra_links,
         )
 
         science_rag_chunks.extend(aktiviteter_list_of_jedish_docs)
@@ -170,6 +181,7 @@ def main():
             metadata_cols=FORLOB_METADATA_COLS,
             exclude_cols=FORLOB_EXCLUDE_COLS,
             exclude_col_if_contains=FORLOB_EXCLUDE_COL_IF_CONTAINS,
+            astra_links=astra_links,
         )
 
         science_rag_chunks.extend(forlob_list_of_jedish_docs)

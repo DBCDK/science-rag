@@ -28,12 +28,16 @@ and `laerervejledning` are added when they have a value. Documents without a row
 
 you can optionally include Astra .csv files (to be preprocessed, chunked and indexed together with the documents) using the following flags: 
 
-`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --link-map path/to/science_rag_link_map.csv --aktiviteter-csv path/to/aktiviteter.csv --forlob-csv path/to/forlob.csv`
+`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --link-map path/to/science_rag_link_map.csv --aktiviteter-csv path/to/aktiviteter.csv --forlob-csv path/to/forlob.csv --astra-links data/astra_links.json`
 
-The Astra exports have no url column, so each aktivitet/forløb gets `URL` = `https://astra.dk/?p=<ID>`, built from the
-`ID` column (the WordPress post ID, which astra.dk redirects to the page). This happens in `harmonize_astra_metadata` in
-`preprocessing/astra_df_to_chunked_docs.py`, which also adds `Afsender` and rewrites `Fag`/`Klassetrin` to the link map
-format. Rows without a valid `ID` get no `URL`.
+The Astra exports have no url column. With `--astra-links`, each aktivitet/forløb gets its `URL` by looking up its `Title`
+in `data/astra_links.json`, a map from page title to url (e.g. `https://astra.dk/aktiviteter/foretag-en-hjertedissektion/`).
+Pages not in the map fall back to `https://astra.dk/?p=<ID>`, built from the `ID` column (the WordPress post ID, which
+astra.dk redirects to the page). This happens in `harmonize_astra_metadata` in `preprocessing/astra_df_to_chunked_docs.py`,
+which also adds `Afsender` and rewrites `Fag`/`Klassetrin` to the link map format. Rows without a match and without a
+valid `ID` get no `URL`. When new pages are added to Astra, add them to `data/astra_links.json`. The map was created
+partially by scraping the astra website and partly hand-selected. If any new Astra documents are added, this map will
+have to be updated.
 
 By default the chunks are embedded locally with `multilingual-e5-large-instruct`. To embed with a remote
 Glyphgate embeddings endpoint instead, add `--embedding-endpoint http://glyph-gate-1-0.ai-prod.svc.cloud.dbc.dk/v1` (a full
