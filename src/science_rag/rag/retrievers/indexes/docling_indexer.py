@@ -9,7 +9,9 @@ from docling.document_converter import DocumentConverter
 
 from science_rag.preprocessing.astra_df_to_chunked_docs import astra_df_to_docling_chunks
 from science_rag.preprocessing.astra_preprocessor import AstraPreprocessor
+from science_rag.preprocessing.link_map import chunk_url, extra_metadata, load_astra_links, load_link_map, nfc
 from science_rag.rag.retrievers.indexes.multilinguale5 import index_paragraph_docs_GPU_batches
+from science_rag.tools.embedder import OpenAIEmbedder
 
 # Importing standard config for Astra csv's ---> which columns use for abstract and metadata
 # all columns not listed: used in abstact.
@@ -26,62 +28,50 @@ from science_rag.preprocessing.astra_csv_cols_config import (
 
 logger = logging.getLogger(__name__)
 
-# Temporary map to show some examples of why links work/don't work
-WEBPDF_MAP = {
-    "zoo-aarsberetning-2024.pdf": "https://content.zoo.dk/media/fk1nlps0/zoo-aarsberetning-2024.pdf",
-    "aarsberetning-2023.pdf": "https://content.zoo.dk/media/whqkk2vs/aarsberetning-2023.pdf",
-    "FORVALTNING AF DYREBESTAND.pdf": "https://www.zoo.dk/om-zoo/dyrene-i-zoo/forvaltning-af-dyrebestanden",
-    "Computational Thinking integreret i matematikundervisningen.pdf": "https://doi.org/10.5281/zenodo.19255073",
-    "Fight the Bite.pdf": "https://undervisning.life.dk/fb",
-}
+DEFAULT_EMBEDDING_MODEL = "intfloat/multilingual-e5-large-instruct"
+GLYPHGATE_API_KEY = os.environ.get("GLYPHGATE_API_KEY")
 
 
 def get_science_rag_document_paths(path_to_folder):
-    # temporary list of documents to ignore
-    documents_to_ignore = {
-        "Samling af datakilder til RAG.docx",
-        "links til kilder.docx",
-        "Webhenvisning fra zoo.docx",
-        "speciale-henvisninger.docx",
-    }
-
     science_rag_doc_paths = []
     for root, dirs, files in os.walk(path_to_folder):
         for file in files:
-            if file in documents_to_ignore:
-                continue
             if file.endswith(".pdf"):
                 science_rag_doc_paths.append(os.path.join(root, file))
     return science_rag_doc_paths
 
 
-def get_docling_chunks(input_file):
-    # parse document
-    converter = DocumentConverter()
+def get_docling_chunks(input_file, link_map, converter, chunker):
     doc = converter.convert(input_file).document
-
-    # chunk document
-    chunker = HybridChunker()
     chunks = [chunk for chunk in chunker.chunk(dl_doc=doc)]
 
     # convert to expected json format
-    jedish_docs = []
+    science_rag_docs = []
     for i, chunk in enumerate(chunks):
-        source = WEBPDF_MAP.get(chunk.meta.origin.filename, chunk.meta.origin.filename)
-        url = f"{source}#page={chunk.meta.doc_items[0].prov[0].page_no}"
-        title = chunk.meta.origin.filename.replace(".pdf", "")
-        jedish_json = {
-            f"{source}_side{chunk.meta.doc_items[0].prov[0].page_no}_chunk{i}": {
+        filename = nfc(chunk.meta.origin.filename)
+        row = link_map.get(filename, {})
+        source = row.get("url") or filename
+        page_no = chunk.meta.doc_items[0].prov[0].page_no
+        # the id is built from the filename, since several documents can share the same url
+        document_chunk = {
+            f"{filename}_side{page_no}_chunk{i}": {
                 "abstract": chunker.contextualize(chunk=chunk),
                 "metadata": {
-                    "URL": url,
-                    "Title": title,
-                },
+                    "URL": chunk_url(source, page_no),
+                    "Title": row.get("title") or filename.replace(".pdf", ""),
+                }
+                | extra_metadata(row),
             }
         }
-        jedish_docs.append(jedish_json)
+        science_rag_docs.append(document_chunk)
 
-    return jedish_docs
+    return science_rag_docs
+
+
+def get_remote_embedder(endpoint_url, model):
+    if not GLYPHGATE_API_KEY:
+        logger.warning(f"The env-var GLYPHGATE_API_KEY is not set, calling {endpoint_url} without an api key")
+    return OpenAIEmbedder(base_url=endpoint_url, model=model, api_key=GLYPHGATE_API_KEY)
 
 
 def parse_args():
@@ -102,6 +92,12 @@ def parse_args():
         type=str,
     )
     parser.add_argument(
+        "--link-map",
+        type=str,
+        required=True,
+        help="path to csv with sources and metadata for the documents, keyed on filename",
+    )
+    parser.add_argument(
         "--batch-size",
         metavar="batch-size",
         help="batch size for embedding chunks",
@@ -111,6 +107,26 @@ def parse_args():
         "--aktiviteter-csv", type=str, required=False, help="(Optional) Path to the Aktiviteter CSV file."
     )
     parser.add_argument("--forlob-csv", type=str, required=False, help="(Optional) Path to the Forløb CSV file.")
+    parser.add_argument(
+        "--astra-links",
+        type=str,
+        required=False,
+        help="(Optional) path to json map from Astra page title to url, e.g. data/astra_links.json. "
+        "Pages not in the map get a https://astra.dk/?p=<ID> url.",
+    )
+    parser.add_argument(
+        "--embedding-endpoint",
+        type=str,
+        required=False,
+        default=None,
+        help="(Optional) base url (`.../v1`) of an OpenAI-compatible embeddings endpoint. If not set, embeds locally on GPU/CPU.",
+    )
+    parser.add_argument(
+        "--embedding-model",
+        type=str,
+        default=DEFAULT_EMBEDDING_MODEL,
+        help="model name sent to --embedding-endpoint",
+    )
     return parser.parse_args()
 
 
@@ -124,13 +140,23 @@ def main():
     # should be the text to embed
     science_rag_chunks = []
 
+    link_map = load_link_map(args.link_map)
+    missing = [p for p in science_rag_doc_paths if nfc(os.path.basename(p)) not in link_map]
+    for file_path in missing:
+        logger.warning(f"{file_path} is not in the link map, using filename as source")
+
     logger.info(f"Reading and chunking {len(science_rag_doc_paths)} science rag documents")
+    converter = DocumentConverter()
+    chunker = HybridChunker()
     for file_path in science_rag_doc_paths:
-        science_rag_chunks.extend(get_docling_chunks(file_path))
+        science_rag_chunks.extend(get_docling_chunks(file_path, link_map, converter, chunker))
 
     # Initializing preprocessor only if we have to preprocess Astra CSV files
     if args.aktiviteter_csv or args.forlob_csv:
         preprocessor = AstraPreprocessor()
+        astra_links = load_astra_links(args.astra_links) if args.astra_links else None
+        if astra_links is None:
+            logger.warning("No --astra-links given, Astra pages get https://astra.dk/?p=<ID> urls")
 
     # Reading and preprocessing activities (aktiviteter)
     if args.aktiviteter_csv:
@@ -141,6 +167,7 @@ def main():
             metadata_cols=AKTIVITETER_METADATA_COLS,
             exclude_cols=AKTIVITETER_EXCLUDE_COLS,
             exclude_col_if_contains=AKTIVITETER_EXCLUDE_COL_IF_CONTAINS,
+            astra_links=astra_links,
         )
 
         science_rag_chunks.extend(aktiviteter_list_of_jedish_docs)
@@ -154,6 +181,7 @@ def main():
             metadata_cols=FORLOB_METADATA_COLS,
             exclude_cols=FORLOB_EXCLUDE_COLS,
             exclude_col_if_contains=FORLOB_EXCLUDE_COL_IF_CONTAINS,
+            astra_links=astra_links,
         )
 
         science_rag_chunks.extend(forlob_list_of_jedish_docs)
@@ -165,8 +193,14 @@ def main():
     logger.info(
         f"Embedding {len(science_rag_chunks)} science rag chunks and saving FAISS db to {args.faiss_db_directory}"
     )
+    embedder = None
+    if args.embedding_endpoint:
+        embedder = get_remote_embedder(args.embedding_endpoint, args.embedding_model)
     index_paragraph_docs_GPU_batches(
-        path_to_index_file=args.document_index_file_path, path=args.faiss_db_directory, batch_size=args.batch_size
+        path_to_index_file=args.document_index_file_path,
+        path=args.faiss_db_directory,
+        batch_size=args.batch_size,
+        embedder=embedder,
     )
 
 

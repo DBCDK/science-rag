@@ -19,11 +19,31 @@ On your local machine:
 2. Make a directory where you want to store your embeddings/FAISS index such as `output_embedding_dir`
 3. To parse the documents and create the faiss index, run
 
-`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/`
+`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --link-map path/to/science_rag_link_map.csv`
+
+`--link-map` is a csv with one row per document, keyed on `filename`, that gives each document its source and metadata
+(see `preprocessing/link_map.py`). `url` and `title` become `URL` and `Title` in the chunk metadata (`#page=N` is only
+added to pdf links), and the columns `afsender`, `fag`, `klassetrin`, `forloeb`, `indskoling`, `mellemtrin`, `udskoling`
+and `laerervejledning` are added when they have a value. Documents without a row or url fall back to their filename.
 
 you can optionally include Astra .csv files (to be preprocessed, chunked and indexed together with the documents) using the following flags: 
 
-`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --aktiviteter-csv path/to/aktiviteter.csv --forlob-csv path/to/forlob.csv`
+`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --link-map path/to/science_rag_link_map.csv --aktiviteter-csv path/to/aktiviteter.csv --forlob-csv path/to/forlob.csv --astra-links data/astra_links.json`
+
+The Astra exports have no url column. With `--astra-links`, each aktivitet/forløb gets its `URL` by looking up its `Title`
+in `data/astra_links.json`, a map from page title to url (e.g. `https://astra.dk/aktiviteter/foretag-en-hjertedissektion/`).
+Pages not in the map fall back to `https://astra.dk/?p=<ID>`, built from the `ID` column (the WordPress post ID, which
+astra.dk redirects to the page). This happens in `harmonize_astra_metadata` in `preprocessing/astra_df_to_chunked_docs.py`,
+which also adds `Afsender` and rewrites `Fag`/`Klassetrin` to the link map format. Rows without a match and without a
+valid `ID` get no `URL`. When new pages are added to Astra, add them to `data/astra_links.json`. The map was created
+partially by scraping the astra website and partly hand-selected. If any new Astra documents are added, this map will
+have to be updated.
+
+By default the chunks are embedded locally with `multilingual-e5-large-instruct`. To embed with a remote
+Glyphgate embeddings endpoint instead, add `--embedding-endpoint http://glyph-gate-1-0.ai-prod.svc.cloud.dbc.dk/v1` (a full
+`.../v1/embeddings` url works too). The api key, if the endpoint needs one, is read from the environment variable
+`GLYPHGATE_API_KEY`, and `--embedding-model` sets the model name sent to the endpoint (default
+`intfloat/multilingual-e5-large-instruct`). The index must be embedded with the same model the service uses for queries.
 
 4. When starting the RAG service, point to the location of the json file list and the FAISS index (as well as embedding/validator models).
 5. You can start the service using: 
