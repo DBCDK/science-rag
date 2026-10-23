@@ -7,6 +7,14 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
+# Undersøgelser (testoteket.dk) pages that were re-published under a new page with the same title
+# (url ending in -2/). Only the newest version is indexed, so the older IDs here are dropped.
+# IDs are only unique within one site, so this applies to the Undersøgelser csv only.
+UNDERSOEGELSER_SUPERSEDED_PAGES = {
+    4010: "Hvilke materialer tiltrækkes af magneter? (superseded by 6770)",
+    4968: "Hvilken magnet slipper automatisk? (superseded by 8265)",
+}
+
 
 class AstraPreprocessor:
     """
@@ -72,6 +80,22 @@ class AstraPreprocessor:
             r"\bLæs mere om modellen her\b",
             r"\bLæs mere om modellen\b",
         ]
+
+    # ---------------------------------------
+    # ------- Drop excluded pages -----------
+    # ---------------------------------------
+    def drop_pages(self, df, page_ids: dict[int, str]):
+        """
+        Drops the rows whose ID is a key in `page_ids` (e.g. UNDERSOEGELSER_SUPERSEDED_PAGES),
+        logging each dropped page with the reason given as the value.
+        """
+        dropped = df["ID"].isin(page_ids)
+        for page_id in df.loc[dropped, "ID"]:
+            logger.info(f"Dropping page {page_id}: {page_ids[page_id]}")
+        missing = set(page_ids) - set(df.loc[dropped, "ID"])
+        if missing:
+            logger.warning(f"Pages {sorted(missing)} to drop are not in the csv")
+        return df[~dropped]
 
     # ---------------------------------------
     # --- Extract raw content + metadata ----

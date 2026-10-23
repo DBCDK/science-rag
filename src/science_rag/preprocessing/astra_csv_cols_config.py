@@ -25,3 +25,21 @@ FORLOB_EXCLUDE_COLS = [
     "page_content_raw",
     "page_content",
 ]
+
+# For undersøgelser (testoteket.dk experiments). Permalink is renamed to URL when the csv is read
+UNDERSOEGELSER_METADATA_COLS = ["ID", "Title", "URL", "[Manchet] Varighed", "[Manchet] Niveau"]
+UNDERSOEGELSER_EXCLUDE_COL_IF_CONTAINS = ["Video url"]
+UNDERSOEGELSER_EXCLUDE_COLS = [
+    "Date",
+    "Post Type",
+    "Overskriv fra sheets",
+    "Standardtekst",
+    "Image URL",
+    "Image Filename",
+    "Image Path",
+    "Image ID",
+    "Image Title",
+    "Image Featured",
+    "page_content_raw",
+    "page_content",
+]

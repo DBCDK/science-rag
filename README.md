@@ -28,7 +28,7 @@ and `laerervejledning` are added when they have a value. Documents without a row
 
 you can optionally include Astra .csv files (to be preprocessed, chunked and indexed together with the documents) using the following flags: 
 
-`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --link-map path/to/science_rag_link_map.csv --aktiviteter-csv path/to/aktiviteter.csv --forlob-csv path/to/forlob.csv --astra-links data/astra_links.json`
+`python src/science_rag/rag/retrievers/indexes/docling_indexer.py path/to/all/documents  name_of_output_chunk_document.json output_embedding_dir/ --link-map path/to/science_rag_link_map.csv --aktiviteter-csv path/to/aktiviteter.csv --forlob-csv path/to/forlob.csv --undersoegelser-csv path/to/undersoegelser.csv --astra-links data/astra_links.json`
 
 The Astra exports have no url column. With `--astra-links`, each aktivitet/forløb gets its `URL` by looking up its `Title`
 in `data/astra_links.json`, a map from page title to url (e.g. `https://astra.dk/aktiviteter/foretag-en-hjertedissektion/`).
