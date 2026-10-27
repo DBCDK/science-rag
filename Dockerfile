@@ -2,8 +2,8 @@ FROM docker-dbc.artifacts.dbccloud.dk/dbc-python3:latest
 
 RUN apt-get update && apt-get install -y --no-install-recommends wget
 
-ARG INDEX_FILEPATH=science_rag_delivery_three
-ARG DOCUMENT_CHUNK_FILEPATH=science_rag_delivery_three_document_chunks.json
+ARG INDEX_FILEPATH=science_rag_delivery_four
+ARG DOCUMENT_CHUNK_FILEPATH=science_rag_delivery_four_document_chunks.json
 ARG MODEL_PATH=${ARTIFACTORY_URL}/${AI_PRODUCTION}/mitcfu-rag/ms-marco-MiniLM-L-6-v2.tgz
 ARG FAISS_PATH=${ARTIFACTORY_URL}/${AI_DOCKER_LAYERS}/science-rag/${INDEX_FILEPATH}.tgz
 ARG INDEX_PATH=${ARTIFACTORY_URL}/${AI_DOCKER_LAYERS}/science-rag/${DOCUMENT_CHUNK_FILEPATH}
