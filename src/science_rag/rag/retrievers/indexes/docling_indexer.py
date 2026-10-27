@@ -8,7 +8,7 @@ from docling.chunking import HybridChunker
 from docling.document_converter import DocumentConverter
 
 from science_rag.preprocessing.astra_df_to_chunked_docs import astra_df_to_docling_chunks
-from science_rag.preprocessing.astra_preprocessor import AstraPreprocessor
+from science_rag.preprocessing.astra_preprocessor import UNDERSOEGELSER_SUPERSEDED_PAGES, AstraPreprocessor
 from science_rag.preprocessing.link_map import chunk_url, extra_metadata, load_astra_links, load_link_map, nfc
 from science_rag.rag.retrievers.indexes.multilinguale5 import index_paragraph_docs_GPU_batches
 from science_rag.tools.embedder import OpenAIEmbedder
@@ -24,6 +24,9 @@ from science_rag.preprocessing.astra_csv_cols_config import (
     FORLOB_METADATA_COLS,
     FORLOB_EXCLUDE_COLS,
     FORLOB_EXCLUDE_COL_IF_CONTAINS,
+    UNDERSOEGELSER_METADATA_COLS,
+    UNDERSOEGELSER_EXCLUDE_COLS,
+    UNDERSOEGELSER_EXCLUDE_COL_IF_CONTAINS,
 )
 
 logger = logging.getLogger(__name__)
@@ -108,6 +111,12 @@ def parse_args():
     )
     parser.add_argument("--forlob-csv", type=str, required=False, help="(Optional) Path to the Forløb CSV file.")
     parser.add_argument(
+        "--undersoegelser-csv",
+        type=str,
+        required=False,
+        help="(Optional) Path to the Undersøgelser CSV file (testoteket.dk experiments, urls from its Permalink column).",
+    )
+    parser.add_argument(
         "--astra-links",
         type=str,
         required=False,
@@ -152,7 +161,7 @@ def main():
         science_rag_chunks.extend(get_docling_chunks(file_path, link_map, converter, chunker))
 
     # Initializing preprocessor only if we have to preprocess Astra CSV files
-    if args.aktiviteter_csv or args.forlob_csv:
+    if args.aktiviteter_csv or args.forlob_csv or args.undersoegelser_csv:
         preprocessor = AstraPreprocessor()
         astra_links = load_astra_links(args.astra_links) if args.astra_links else None
         if astra_links is None:
@@ -185,6 +194,22 @@ def main():
         )
 
         science_rag_chunks.extend(forlob_list_of_jedish_docs)
+
+    # Reading and preprocessing experiments (undersøgelser). These live on testoteket.dk, so the url is
+    # the Permalink column and not looked up in the Astra links map. Older duplicates of re-published pages are dropped
+    if args.undersoegelser_csv:
+        undersoegelser_df = pd.read_csv(args.undersoegelser_csv, sep=",", encoding="utf-8")
+        undersoegelser_df = undersoegelser_df.rename(columns={"Permalink": "URL"})
+        undersoegelser_df = preprocessor.drop_pages(undersoegelser_df, UNDERSOEGELSER_SUPERSEDED_PAGES)
+        undersoegelser_list_of_jedish_docs = astra_df_to_docling_chunks(
+            undersoegelser_df,
+            preprocessor=preprocessor,
+            metadata_cols=UNDERSOEGELSER_METADATA_COLS,
+            exclude_cols=UNDERSOEGELSER_EXCLUDE_COLS,
+            exclude_col_if_contains=UNDERSOEGELSER_EXCLUDE_COL_IF_CONTAINS,
+        )
+
+        science_rag_chunks.extend(undersoegelser_list_of_jedish_docs)
 
     logger.info(f"Saving {len(science_rag_chunks)} science rag chunks")
     with open(args.document_index_file_path, "w") as f:
