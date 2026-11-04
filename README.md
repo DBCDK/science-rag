@@ -54,6 +54,10 @@ Glyphgate embeddings endpoint instead, add `--embedding-endpoint http://glyph-ga
 The service is FastAPI/uvicorn-based; once it's running, interactive API docs are available at
 `/docs` and `/redoc` (e.g. `http://localhost:5011/docs`).
 
+Streaming responses start with an empty delta, and send another whenever nothing else has been sent for
+`SCIENCE_RAG_HEARTBEAT_SECONDS` (default 10). This keeps glyph-gate (120s stream read timeout) and the browser from
+timing out while the router, the reformulator and retrieval run before the first token. The empty deltas are discarded automatically by the frontend.
+
 6. You can then start Streamlit using:
 streamlit run src/science_rag/streamlit_ui.py --server.port 8111
 7. Hooray! You should now be able to query your own documents using RAG.
