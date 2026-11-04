@@ -13,6 +13,7 @@ tornado-based ``science_rag.service`` module; the HTTP contract
 
 import argparse
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -25,6 +26,12 @@ from science_rag.service import _dbc_optional
 from science_rag.service.endpoints import router
 
 logger = logging.getLogger(__name__)
+
+
+def _heartbeat_seconds() -> float:
+    """Read SCIENCE_RAG_HEARTBEAT_SECONDS: how long a stream may be silent before an empty delta is
+    sent. Must stay well below glyph-gate's stream read timeout (120s) and the ingress timeout."""
+    return float(os.environ.get("SCIENCE_RAG_HEARTBEAT_SECONDS", "10"))
 
 
 def _make_lifespan(agentic_rag: AgenticRAG):
@@ -71,6 +78,7 @@ def create_app(args: argparse.Namespace) -> FastAPI:
     app.state.build_info = build_info
     app.state.stats = stats
     app.state.ab_id = args.ab_id
+    app.state.heartbeat_seconds = _heartbeat_seconds()
 
     app.include_router(router)
 

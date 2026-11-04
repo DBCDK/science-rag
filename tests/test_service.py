@@ -7,6 +7,8 @@ rather than the real package, so this test runs the same whether or not the
 ``dbc`` dependency group is installed.
 """
 
+import asyncio
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +17,7 @@ from fastapi.responses import PlainTextResponse
 from fastapi.testclient import TestClient
 
 from science_rag.service import _dbc_optional
+from science_rag.service.endpoints import _with_heartbeats
 from science_rag.service.start import create_app
 
 
@@ -36,16 +39,20 @@ class StubGraph:
     """Stands in for ``AgenticGraph.graph``: ``ainvoke`` returns an async-iterable
     ``output`` of raw string deltas, matching ``AgentStreamingGenerator``."""
 
-    def __init__(self, tokens):
+    def __init__(self, tokens, delay=0.0):
         self.tokens = tokens
+        self.delay = delay
         self.last_state = None
 
     async def ainvoke(self, state):
         self.last_state = state
         tokens = self.tokens
+        delay = self.delay
+        await asyncio.sleep(delay)
 
         async def _stream():
             for token in tokens:
+                await asyncio.sleep(delay)
                 yield token
 
         return {"output": _stream()}
@@ -194,8 +201,8 @@ def test_chat_completions_non_streaming(stub_rag_classes, dbc_unavailable):
     assert body["choices"][0]["finish_reason"] == "stop"
 
 
-def test_chat_completions_streaming(stub_rag_classes, dbc_unavailable):
-    app = create_app(_args())
+def _stream_deltas(app):
+    """Posts a streaming request and returns the frames' deltas (None for the finish frame)."""
     with TestClient(app) as client:
         with client.stream(
             "POST",
@@ -204,8 +211,48 @@ def test_chat_completions_streaming(stub_rag_classes, dbc_unavailable):
         ) as response:
             assert response.status_code == 200
             body = "".join(response.iter_text())
-    assert body.count('"object": "chat.completion.chunk"') == 4  # 3 tokens + final finish_reason frame
     assert body.endswith("data: [DONE]\n\n")
+    frames = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: {")]
+    return [frame["choices"][0]["delta"].get("content") for frame in frames]
+
+
+def test_chat_completions_streaming(stub_rag_classes, dbc_unavailable):
+    deltas = _stream_deltas(create_app(_args()))
+    assert deltas == ["", "Hello", ", ", "world!", None]
+
+
+def test_chat_completions_streaming_sends_heartbeats_while_silent(stub_rag_classes, dbc_unavailable, monkeypatch):
+    monkeypatch.setenv("SCIENCE_RAG_HEARTBEAT_SECONDS", "0.02")
+    app = create_app(_args())
+    app.state.agentic_graph.graph = StubGraph(["Hello", ", ", "world!"], delay=0.1)
+    deltas = _stream_deltas(app)
+    # heartbeats both while the graph routes (before any token) and between tokens
+    assert deltas[:2] == ["", ""]
+    assert deltas.count("") > 3
+    assert "".join(d for d in deltas if d) == "Hello, world!"
+    assert deltas[-1] is None
+
+
+def test_heartbeats_close_source_when_consumer_stops_early():
+    closed = asyncio.Event()
+
+    async def slow_source():
+        try:
+            yield "Hello"
+            await asyncio.sleep(10)
+            yield "never sent"
+        finally:
+            closed.set()
+
+    async def consume_then_disconnect():
+        frames = _with_heartbeats(slow_source(), interval=0.01)
+        assert await anext(frames) == "Hello"
+        assert await anext(frames) == ""  # source is now blocked mid-sleep
+        await frames.aclose()
+        return closed.is_set()
+
+    assert asyncio.run(consume_then_disconnect()) is True
+
 
 
 def test_lifespan_closes_generator_on_shutdown(stub_rag_classes, dbc_unavailable):
